@@ -90,7 +90,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       <div className="flex flex-wrap items-center gap-1">
         {buttons.map((button, index) => {
           if ('separator' in button) {
-            return <div key={index} className="w-px h-6 bg-gray-300 mx-2" />;
+            return <div key={index} className="w-px h-6 bg-gray-300 mx-2 inline" />;
           }
 
           const isActive = activeFormats.includes(button.command);

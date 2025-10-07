@@ -3,6 +3,7 @@ export interface TextEditorProps {
   initialContent?: string;
   onSave?: (content: string, html: string) => void;
   onExport?: (html: string) => void;
+  className?: string;
 }
 
 export interface ToolbarButton {

@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { Toolbar } from './Toolbar';
 import { StatusBar } from './StatusBar';
-import { useTextEditor } from '../hooks/useEditorHooks';
-import type { TextEditorProps } from '../type/editor';
+import { useTextEditor } from '../hooks/useTextEditor';
+import type { TextEditorProps } from '../types/editor';
 
 
 export const TextEditor: React.FC<TextEditorProps> = ({
