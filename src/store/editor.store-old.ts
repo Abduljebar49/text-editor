@@ -22,6 +22,7 @@ interface EditorActions {
   updateActiveFormats: () => void;
   getValidationResult: () => { success: boolean; data?: EditorContent; error?: string };
   exportToHTML: (options?: { includeStyles: boolean; includeMeta: boolean }) => string;
+  initializeContent: (content: string) => void;
 }
 
 const initialState: EditorState = {
@@ -42,6 +43,18 @@ export const useEditorStore = create<EditorState & EditorActions>()(
   persist(
     (set, get) => ({
       ...initialState,
+
+      // Initialize content (similar to your hook's useEffect)
+      initializeContent: (content: string) => {
+        const currentState = get();
+        if (content !== currentState.content) {
+          const counts = calculateCounts(content);
+          set({
+            content,
+            ...counts,
+          });
+        }
+      },
 
       updateContent: (content: string) => {
         const counts = calculateCounts(content);
@@ -91,19 +104,53 @@ export const useEditorStore = create<EditorState & EditorActions>()(
       },
 
       updateActiveFormats: () => {
-        const commands = [
-          'bold',
-          'italic',
-          'underline',
-          'strikeThrough',
-          'justifyLeft',
-          'justifyCenter',
-          'justifyRight',
-        ];
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+          set({ activeFormats: [] });
+          return;
+        }
+
         const active: string[] = [];
-        commands.forEach((cmd) => {
+        const range = selection.getRangeAt(0);
+        const container = range.commonAncestorContainer;
+        
+        // Get the actual element (handle text nodes)
+        const element = container.nodeType === 3 ? container.parentElement : container as Element;
+        
+        if (!element) {
+          set({ activeFormats: [] });
+          return;
+        }
+
+        // Check inline formatting commands
+        const inlineCommands = ['bold', 'italic', 'underline', 'strikeThrough'];
+        inlineCommands.forEach((cmd) => {
           if (document.queryCommandState(cmd)) active.push(cmd);
         });
+
+        // Check alignment by inspecting computed styles or parent elements
+        const parentElement = element.closest('div, p, h1, h2, h3, h4, h5, h6, li, td');
+        if (parentElement) {
+          const style = window.getComputedStyle(parentElement);
+          const textAlign = style.textAlign;
+          
+          if (textAlign === 'center') active.push('justifyCenter');
+          else if (textAlign === 'right') active.push('justifyRight');
+          else if (textAlign === 'left') active.push('justifyLeft');
+          else if (textAlign === 'justify') active.push('justifyFull');
+        }
+
+        // Check block formatting by tag name
+        const blockElement = element.closest('h1, h2, h3, h4, h5, h6, p, blockquote, pre');
+        if (blockElement) {
+          const tagName = blockElement.tagName.toLowerCase();
+          active.push(`formatBlock-${tagName}`);
+        }
+
+        // Check list types
+        if (element.closest('ul')) active.push('insertUnorderedList');
+        if (element.closest('ol')) active.push('insertOrderedList');
+
         set({ activeFormats: active });
       },
 

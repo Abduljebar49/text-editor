@@ -1,5 +1,5 @@
 // src/components/Toolbar.tsx
-import React, { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Bold,
   Italic,
@@ -18,13 +18,13 @@ import {
   Trash2,
   Type,
 } from "lucide-react";
-import { useEditorStore } from "../store/editor.store";
 
 interface ToolbarProps {
   onSave: () => void;
   onExport: () => void;
   onClear: () => void;
   showButtons?: boolean;
+  executeCommand: (command: string, value?: string) => void;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -32,15 +32,39 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onExport,
   onClear,
   showButtons = false,
+  executeCommand,
 }) => {
-  const {
-    activeFormats,
-    hasUnsavedChanges,
-    executeCommand,
-    updateActiveFormats,
-  } = useEditorStore();
+  const [activeFormats, setActiveFormats] = useState<string[]>([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Track current formatting to highlight active buttons
+  const updateActiveFormats = () => {
+    const formats: string[] = [];
+    if (document.queryCommandState("bold")) formats.push("bold");
+    if (document.queryCommandState("italic")) formats.push("italic");
+    if (document.queryCommandState("underline")) formats.push("underline");
+    if (document.queryCommandState("strikeThrough")) formats.push("strikeThrough");
+    if (document.queryCommandState("insertUnorderedList")) formats.push("insertUnorderedList");
+    if (document.queryCommandState("insertOrderedList")) formats.push("insertOrderedList");
+    if (document.queryCommandState("justifyLeft")) formats.push("justifyLeft");
+    if (document.queryCommandState("justifyCenter")) formats.push("justifyCenter");
+    if (document.queryCommandState("justifyRight")) formats.push("justifyRight");
+    
+    // Check for block formats
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const parentElement = selection.getRangeAt(0).commonAncestorContainer.parentElement;
+      if (parentElement) {
+        const tagName = parentElement.tagName.toLowerCase();
+        if (["h1", "h2", "p"].includes(tagName)) {
+          formats.push("formatBlock");
+        }
+      }
+    }
+
+    setActiveFormats(formats);
+  };
+
   useEffect(() => {
     const handleSelectionChange = () => {
       updateActiveFormats();
@@ -49,7 +73,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     document.addEventListener("selectionchange", handleSelectionChange);
     return () =>
       document.removeEventListener("selectionchange", handleSelectionChange);
-  }, [updateActiveFormats]);
+  }, []);
 
   const handleLinkInsert = () => {
     const url = prompt("Enter URL:");
@@ -113,7 +137,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       value: "h1",
       icon: <Heading1 size={18} />,
       title: "Heading 1",
-      onClick: () => handleFormatBlock("<h1>"),
+      onClick: () => handleFormatBlock("h1"),
     },
     {
       id: "heading-2",
@@ -121,7 +145,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       value: "h2",
       icon: <Heading2 size={18} />,
       title: "Heading 2",
-      onClick: () => handleFormatBlock("<h2>"),
+      onClick: () => handleFormatBlock("h2"),
     },
     {
       id: "paragraph",
@@ -129,7 +153,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       value: "p",
       icon: <Type size={18} />,
       title: "Paragraph",
-      onClick: () => handleFormatBlock("<p>"),
+      onClick: () => handleFormatBlock("p"),
     },
     { id: "separator-3", separator: true },
     {
@@ -200,9 +224,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <div className="flex items-center gap-2 mt-2 sm:mt-0">
           <button
             onClick={onSave}
-            disabled={!hasUnsavedChanges}
             title="Save Document"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors duration-200"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors duration-200"
           >
             <Save size={16} />
             <span>Save</span>

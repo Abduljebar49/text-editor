@@ -1,8 +1,8 @@
 // src/components/TextEditor.tsx
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
-import { useEditorStore } from "../store/editor.store";
+import { useTextEditor } from "../hooks/useTextEditor";
 import type { TextEditorProps } from "../types/editor";
 
 export const TextEditor: React.FC<TextEditorProps> = ({
@@ -14,34 +14,31 @@ export const TextEditor: React.FC<TextEditorProps> = ({
   showSaveTitle = false,
   showStatusBar = false,
 }) => {
-  const editorRef = useRef<HTMLDivElement>(null);
   const [showValidation, setShowValidation] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Get state and actions from store
+  // Use the custom hook
   const {
-    content,
-    title,
-    wordCount,
-    characterCount,
-    hasUnsavedChanges,
+    editorState,
+    editorRef,
     updateContent,
     updateTitle,
+    executeCommand,
     getValidationResult,
     exportToHTML,
     clearEditor,
-    setHasUnsavedChanges,
-  } = useEditorStore();
+  } = useTextEditor(initialContent);
 
-  // Initialize editor content - run only once when initialContent changes
+  // Destructure state from hook
+  const { content, title, wordCount, characterCount, hasUnsavedChanges } = editorState;
+
+  // Initialize editor content when initialContent changes
   useEffect(() => {
     if (editorRef.current && initialContent && !isInitialized) {
       editorRef.current.innerHTML = initialContent;
-      updateContent(initialContent);
-      setHasUnsavedChanges(false);
       setIsInitialized(true);
     }
-  }, [initialContent, isInitialized, updateContent, setHasUnsavedChanges]);
+  }, [initialContent, isInitialized]);
 
   // Reset initialization when initialContent becomes empty (for clearing)
   useEffect(() => {
@@ -50,42 +47,33 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     }
   }, [initialContent]);
 
-  // Handle content changes with debouncing
-  const handleContentUpdate = useCallback(
-    (newContent: string) => {
-      updateContent(newContent);
-      setHasUnsavedChanges(true);
+  // Handle content changes
+  const handleContentUpdate = (newContent: string) => {
+    updateContent(newContent);
 
-      // Call onChange callback if provided
-      if (onChange) {
-        const html = exportToHTML();
-        onChange(newContent, html);
-      }
-    },
-    [updateContent, setHasUnsavedChanges, onChange, exportToHTML]
-  );
+    // Call onChange callback if provided
+    if (onChange) {
+      const html = exportToHTML();
+      onChange(newContent, html);
+    }
+  };
 
   // Handle title changes
-  const handleTitleChange = useCallback(
-    (newTitle: string) => {
-      updateTitle(newTitle);
-      setHasUnsavedChanges(true);
+  const handleTitleChange = (newTitle: string) => {
+    updateTitle(newTitle);
 
-      // Call onChange callback if provided (with current content)
-      if (onChange) {
-        const html = exportToHTML();
-        onChange(content, html, newTitle);
-      }
-    },
-    [updateTitle, setHasUnsavedChanges, onChange, exportToHTML, content]
-  );
+    // Call onChange callback if provided (with current content)
+    if (onChange) {
+      const html = exportToHTML();
+      onChange(content, html, newTitle);
+    }
+  };
 
   const handleSave = () => {
     const validation = getValidationResult();
     if (validation.success) {
       const html = exportToHTML();
       onSave?.(content, html);
-      setHasUnsavedChanges(false);
     } else {
       setShowValidation(true);
       setTimeout(() => setShowValidation(false), 3000);
@@ -121,9 +109,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
       )
     ) {
       clearEditor();
-      if (editorRef.current) {
-        editorRef.current.innerHTML = "";
-      }
       setIsInitialized(false);
       // Call onChange with empty content after clearing
       if (onChange) {
@@ -158,6 +143,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
         onExport={handleExport}
         onClear={handleClear}
         showButtons={showButtons}
+        executeCommand={executeCommand}
       />
 
       {/* Editor Content */}
