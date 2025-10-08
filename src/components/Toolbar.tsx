@@ -20,26 +20,30 @@ import {
 } from "lucide-react";
 
 interface ToolbarProps {
+  onCommand: (command: string, value?: string) => void;
   onSave: () => void;
   onExport: () => void;
   onClear: () => void;
   showButtons?: boolean;
-  executeCommand: (command: string, value?: string) => void;
+  hasUnsavedChanges: boolean;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
+  onCommand,
   onSave,
   onExport,
   onClear,
   showButtons = false,
-  executeCommand,
+  hasUnsavedChanges,
 }) => {
   const [activeFormats, setActiveFormats] = useState<string[]>([]);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [currentBlockFormat, setCurrentBlockFormat] = useState<string>("p");
 
   // Track current formatting to highlight active buttons
   const updateActiveFormats = () => {
     const formats: string[] = [];
+    let blockFormat = "p"; // Default to paragraph
+    
     if (document.queryCommandState("bold")) formats.push("bold");
     if (document.queryCommandState("italic")) formats.push("italic");
     if (document.queryCommandState("underline")) formats.push("underline");
@@ -50,18 +54,32 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     if (document.queryCommandState("justifyCenter")) formats.push("justifyCenter");
     if (document.queryCommandState("justifyRight")) formats.push("justifyRight");
     
-    // Check for block formats
+    // Check for block formats more accurately
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
-      const parentElement = selection.getRangeAt(0).commonAncestorContainer.parentElement;
-      if (parentElement) {
-        const tagName = parentElement.tagName.toLowerCase();
-        if (["h1", "h2", "p"].includes(tagName)) {
-          formats.push("formatBlock");
+      let parentElement = selection.getRangeAt(0).commonAncestorContainer as Node;
+      
+      // Traverse up the DOM tree to find the block-level element
+      while (parentElement && parentElement.nodeType === Node.ELEMENT_NODE) {
+        const element = parentElement as Element;
+        const tagName = element.tagName.toLowerCase();
+        
+        if (["h1", "h2", "p", "div"].includes(tagName)) {
+          if (tagName === "h1" || tagName === "h2") {
+            blockFormat = tagName;
+            formats.push(`formatBlock:${tagName}`);
+          } else if (tagName === "p" || (tagName === "div" && !blockFormat)) {
+            // Only set to paragraph if we haven't found a heading
+            blockFormat = "p";
+          }
+          break;
         }
+        
+        parentElement = element.parentNode as Node;
       }
     }
 
+    setCurrentBlockFormat(blockFormat);
     setActiveFormats(formats);
   };
 
@@ -70,20 +88,27 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       updateActiveFormats();
     };
 
+    // Also update on click and keyup to catch typing changes
+    const handleInputEvents = () => {
+      setTimeout(updateActiveFormats, 10); // Small delay to ensure DOM is updated
+    };
+
     document.addEventListener("selectionchange", handleSelectionChange);
-    return () =>
+    document.addEventListener("click", handleInputEvents);
+    document.addEventListener("keyup", handleInputEvents);
+
+    return () => {
       document.removeEventListener("selectionchange", handleSelectionChange);
+      document.removeEventListener("click", handleInputEvents);
+      document.removeEventListener("keyup", handleInputEvents);
+    };
   }, []);
 
   const handleLinkInsert = () => {
     const url = prompt("Enter URL:");
     if (url) {
-      executeCommand("createLink", url);
+      onCommand("createLink", url);
     }
-  };
-
-  const handleFormatBlock = (value: string) => {
-    executeCommand("formatBlock", value);
   };
 
   const buttonConfigs = [
@@ -92,28 +117,24 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       command: "bold",
       icon: <Bold size={18} />,
       title: "Bold",
-      onClick: () => executeCommand("bold"),
     },
     {
       id: "italic",
       command: "italic",
       icon: <Italic size={18} />,
       title: "Italic",
-      onClick: () => executeCommand("italic"),
     },
     {
       id: "underline",
       command: "underline",
       icon: <Underline size={18} />,
       title: "Underline",
-      onClick: () => executeCommand("underline"),
     },
     {
       id: "strikeThrough",
       command: "strikeThrough",
       icon: <Strikethrough size={18} />,
       title: "Strikethrough",
-      onClick: () => executeCommand("strikeThrough"),
     },
     { id: "separator-1", separator: true },
     {
@@ -121,14 +142,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       command: "insertUnorderedList",
       icon: <List size={18} />,
       title: "Bullet List",
-      onClick: () => executeCommand("insertUnorderedList"),
     },
     {
       id: "ordered-list",
       command: "insertOrderedList",
       icon: <ListOrdered size={18} />,
       title: "Numbered List",
-      onClick: () => executeCommand("insertOrderedList"),
     },
     { id: "separator-2", separator: true },
     {
@@ -137,7 +156,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       value: "h1",
       icon: <Heading1 size={18} />,
       title: "Heading 1",
-      onClick: () => handleFormatBlock("h1"),
+      isActive: currentBlockFormat === "h1",
     },
     {
       id: "heading-2",
@@ -145,7 +164,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       value: "h2",
       icon: <Heading2 size={18} />,
       title: "Heading 2",
-      onClick: () => handleFormatBlock("h2"),
+      isActive: currentBlockFormat === "h2",
     },
     {
       id: "paragraph",
@@ -153,7 +172,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       value: "p",
       icon: <Type size={18} />,
       title: "Paragraph",
-      onClick: () => handleFormatBlock("p"),
+      isActive: currentBlockFormat === "p",
     },
     { id: "separator-3", separator: true },
     {
@@ -161,21 +180,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       command: "justifyLeft",
       icon: <AlignLeft size={18} />,
       title: "Align Left",
-      onClick: () => executeCommand("justifyLeft"),
     },
     {
       id: "align-center",
       command: "justifyCenter",
       icon: <AlignCenter size={18} />,
       title: "Center",
-      onClick: () => executeCommand("justifyCenter"),
     },
     {
       id: "align-right",
       command: "justifyRight",
       icon: <AlignRight size={18} />,
       title: "Align Right",
-      onClick: () => executeCommand("justifyRight"),
     },
     { id: "separator-4", separator: true },
     {
@@ -198,12 +214,20 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             );
           }
 
-          const isActive = activeFormats.includes(button.command);
+          // For block format buttons, use the specific isActive property
+          // For other buttons, use the activeFormats array
+          const isActive = button.isActive !== undefined 
+            ? button.isActive 
+            : activeFormats.includes(button.command);
 
           return (
             <button
               key={button.id}
-              onClick={button.onClick}
+              onClick={() => 
+                button.onClick 
+                  ? button.onClick() 
+                  : onCommand(button.command, button.value)
+              }
               title={button.title}
               type="button"
               className={`w-9 h-9 flex items-center justify-center rounded-md border transition-colors duration-200
@@ -219,13 +243,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         })}
       </div>
 
-      {/* Actions section */}
+      {/* Conditional Actions section */}
       {showButtons && (
         <div className="flex items-center gap-2 mt-2 sm:mt-0">
           <button
             onClick={onSave}
+            disabled={!hasUnsavedChanges}
             title="Save Document"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors duration-200"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors duration-200"
           >
             <Save size={16} />
             <span>Save</span>

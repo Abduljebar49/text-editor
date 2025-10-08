@@ -1,26 +1,43 @@
-import { TextEditor } from ".";
+//App.tsx
+import { TextEditor } from './components/TextEditor';
 
 function App() {
-  const initialContent = `
-    <h1>Welcome to Text Editor</h1>
-    <p>This is <strong>bold text</strong> and this is <em>italic text</em>.</p>
-    <ul>
-      <li>List item 1</li>
-      <li>List item 2</li>
-      <li>List item 3</li>
-    </ul>
-  `;
+  const handleSave = (content: string, html: string) => {
+    console.log('Content saved:', content);
+    console.log('HTML exported:', html);
+    alert('Document saved successfully!');
+  };
+
+  const handleExport = (html: string) => {
+    console.log('HTML for export:', html);
+    alert('HTML file downloaded!');
+  };
 
   return (
-    <main>
-      <TextEditor
-        initialContent={initialContent}
-        onChange={(content, html, title) => {
-          console.log("Content changed:", { content, html, title });
-          // Update your form state here
-        }}
-      />
-    </main>
+    // <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+    //   <div className="max-w-7xl mx-auto">
+    //     <header className="text-center mb-12">
+    //       <h1 className="text-4xl font-bold text-gray-800 mb-4">
+    //         Advanced Text Editor
+    //       </h1>
+    //       <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+    //         Create rich text content with real-time validation and export as beautiful HTML documents
+    //       </p>
+    //     </header>
+        
+    //     <main>
+          <TextEditor
+            onChange={(content, html, title) => {
+              console.log('Content changed:', content);
+              console.log('HTML changed:', html);}}
+          />
+    //     </main>
+        
+    //     <footer className="text-center mt-12 text-gray-500 text-sm">
+    //       <p>Built with React, TypeScript, Tailwind CSS, and Zod</p>
+    //     </footer>
+    //   </div>
+    // </div>
   );
 }
 

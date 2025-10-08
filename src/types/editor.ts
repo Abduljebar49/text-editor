@@ -2,10 +2,10 @@ export interface TextEditorProps {
   initialContent?: string;
   onSave?: (content: string, html: string) => void;
   onExport?: (html: string) => void;
-  onChange?: (content: string, html: string, title?: string) => void; // Add onChange
-  showButtons?: boolean; // Add hideToolbar
-  showSaveTitle?: boolean; // Add showSaveTitle
-  showStatusBar?: boolean; // Add showStatusBar
+  onChange?: (content: string, html: string, title?: string) => void;
+  showButtons?: boolean;
+  showSaveTitle?: boolean;
+  showStatusBar?: boolean;
 }
 
 export interface ToolbarButton {
