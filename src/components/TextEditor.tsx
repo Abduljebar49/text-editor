@@ -9,13 +9,14 @@ export const TextEditor: React.FC<TextEditorProps> = ({
   initialContent = "",
   onSave,
   onExport,
-  onChange, // Add onChange prop
-  showButtons = false, // Add option to hide toolbar
-  showSaveTitle = false, // Add option to hide title section
-  showStatusBar = false, // Add option to hide status bar
+  onChange,
+  showButtons = false,
+  showSaveTitle = false,
+  showStatusBar = false,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [showValidation, setShowValidation] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Get state and actions from store
   const {
@@ -32,14 +33,22 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     setHasUnsavedChanges,
   } = useEditorStore();
 
-  // Initialize editor content
+  // Initialize editor content - run only once when initialContent changes
   useEffect(() => {
-    if (editorRef.current && initialContent && initialContent !== content) {
+    if (editorRef.current && initialContent && !isInitialized) {
       editorRef.current.innerHTML = initialContent;
       updateContent(initialContent);
       setHasUnsavedChanges(false);
+      setIsInitialized(true);
     }
-  }, [initialContent, content, updateContent, setHasUnsavedChanges]);
+  }, [initialContent, isInitialized, updateContent, setHasUnsavedChanges]);
+
+  // Reset initialization when initialContent becomes empty (for clearing)
+  useEffect(() => {
+    if (!initialContent) {
+      setIsInitialized(false);
+    }
+  }, [initialContent]);
 
   // Handle content changes with debouncing
   const handleContentUpdate = useCallback(
@@ -49,7 +58,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
 
       // Call onChange callback if provided
       if (onChange) {
-        const html = exportToHTML(); // Get the current HTML representation
+        const html = exportToHTML();
         onChange(newContent, html);
       }
     },
@@ -115,6 +124,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
       if (editorRef.current) {
         editorRef.current.innerHTML = "";
       }
+      setIsInitialized(false);
       // Call onChange with empty content after clearing
       if (onChange) {
         onChange("", "");
@@ -143,14 +153,12 @@ export const TextEditor: React.FC<TextEditorProps> = ({
       )}
 
       {/* Toolbar - Conditionally rendered */}
-      {/* {!showButtons && ( */}
       <Toolbar
         onSave={handleSave}
         onExport={handleExport}
         onClear={handleClear}
         showButtons={showButtons}
       />
-      {/* )} */}
 
       {/* Editor Content */}
       <div
