@@ -1,0 +1,109 @@
+/* Toolbar.css */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.toolbar-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 24px;
+  background-color: #d1d5db;
+  margin: 0 8px;
+  display: inline-block;
+}
+
+.toolbar-button {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toolbar-button:hover {
+  background-color: #f3f4f6;
+}
+
+.toolbar-button:active {
+  background-color: #e5e7eb;
+}
+
+.toolbar-button.active {
+  background-color: #dbeafe;
+  color: #2563eb;
+  border-color: #93c5fd;
+}
+
+.action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+@media (min-width: 640px) {
+  .action-buttons {
+    margin-top: 0;
+  }
+}
+
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border: none;
+}
+
+.save-button {
+  background-color: #2563eb;
+}
+
+.save-button:hover {
+  background-color: #1d4ed8;
+}
+
+.save-button:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+.export-button {
+  background-color: #059669;
+}
+
+.export-button:hover {
+  background-color: #047857;
+}
+
+.clear-button {
+  background-color: #dc2626;
+}
+
+.clear-button:hover {
+  background-color: #b91c1c;
+}

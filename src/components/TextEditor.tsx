@@ -5,7 +5,6 @@ import { StatusBar } from './StatusBar';
 import { useTextEditor } from '../hooks/useTextEditor';
 import type { TextEditorProps } from '../types/editor';
 
-
 export const TextEditor: React.FC<TextEditorProps> = ({
   initialContent = '',
   onSave,
@@ -20,7 +19,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     getValidationResult,
     exportToHTML,
     clearEditor,
-  } = useTextEditor(initialContent); // ✅ pass initial content
+  } = useTextEditor(initialContent);
 
   const [showValidation, setShowValidation] = useState(false);
 
@@ -61,22 +60,24 @@ export const TextEditor: React.FC<TextEditorProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="p-6 border-b border-gray-200 bg-gray-50">
+    <div className="w-full max-w-6xl mx-auto bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+      {/* Header Section */}
+      <div className="p-6 border-b border-gray-200 bg-gray-50 rounded-t-xl">
         <input
           type="text"
-          className="w-full bg-transparent text-2xl font-bold text-gray-800 outline-none placeholder-gray-400"
+          className="w-full bg-transparent text-2xl font-bold text-gray-800 placeholder-gray-500 outline-none border-none focus:ring-0"
           value={editorState.title}
           onChange={(e) => updateTitle(e.target.value)}
           placeholder="Document Title"
         />
         {showValidation && (
-          <div className="text-red-600 text-sm mt-2 animate-fadeIn">
+          <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm animate-pulse">
             Please add content before saving
           </div>
         )}
       </div>
 
+      {/* Toolbar */}
       <Toolbar
         onCommand={executeCommand}
         onSave={handleSave}
@@ -85,13 +86,17 @@ export const TextEditor: React.FC<TextEditorProps> = ({
         hasUnsavedChanges={editorState.hasUnsavedChanges}
       />
 
+      {/* Editor Content */}
       <div
         ref={editorRef}
-        className="editor-content min-h-[500px] p-8 border-none outline-none resize-none text-gray-700 leading-relaxed prose max-w-none"
+        className="min-h-[500px] p-8 prose max-w-none border-none outline-none resize-none text-gray-700 leading-relaxed bg-white focus:bg-gray-50 transition-colors duration-200"
         contentEditable
         onInput={(e) => updateContent(e.currentTarget.innerHTML)}
+        onFocus={(e) => e.currentTarget.classList.add('bg-gray-50')}
+        onBlur={(e) => e.currentTarget.classList.remove('bg-gray-50')}
       />
 
+      {/* Status Bar */}
       <StatusBar
         wordCount={editorState.wordCount}
         characterCount={editorState.characterCount}
