@@ -1,5 +1,5 @@
 // src/components/Toolbar.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from "react";
 import {
   Bold,
   Italic,
@@ -17,96 +17,177 @@ import {
   Save,
   Trash2,
   Type,
-} from 'lucide-react';
+} from "lucide-react";
+import { useEditorStore } from "../store/editor.store";
 
 interface ToolbarProps {
-  onCommand: (command: string, value?: string) => void;
   onSave: () => void;
   onExport: () => void;
   onClear: () => void;
-  hasUnsavedChanges: boolean;
+  showButtons?: boolean;
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
-  onCommand,
   onSave,
   onExport,
   onClear,
-  hasUnsavedChanges,
+  showButtons = false,
 }) => {
-  const [activeFormats, setActiveFormats] = useState<string[]>([]);
+  const {
+    activeFormats,
+    hasUnsavedChanges,
+    executeCommand,
+    updateActiveFormats,
+  } = useEditorStore();
 
   // Track current formatting to highlight active buttons
-  const updateActiveFormats = () => {
-    const commands = [
-      'bold',
-      'italic',
-      'underline',
-      'strikeThrough',
-      'justifyLeft',
-      'justifyCenter',
-      'justifyRight',
-    ];
-    const active: string[] = [];
-    commands.forEach((cmd) => {
-      if (document.queryCommandState(cmd)) active.push(cmd);
-    });
-    setActiveFormats(active);
-  };
-
   useEffect(() => {
-    document.addEventListener('selectionchange', updateActiveFormats);
-    return () => document.removeEventListener('selectionchange', updateActiveFormats);
-  }, []);
+    const handleSelectionChange = () => {
+      updateActiveFormats();
+    };
+
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () =>
+      document.removeEventListener("selectionchange", handleSelectionChange);
+  }, [updateActiveFormats]);
 
   const handleLinkInsert = () => {
-    const url = prompt('Enter URL:');
-    if (url) onCommand('createLink', url);
+    const url = prompt("Enter URL:");
+    if (url) {
+      executeCommand("createLink", url);
+    }
   };
 
-  const buttons = [
-    { command: 'bold', icon: <Bold size={18} />, title: 'Bold' },
-    { command: 'italic', icon: <Italic size={18} />, title: 'Italic' },
-    { command: 'underline', icon: <Underline size={18} />, title: 'Underline' },
-    { command: 'strikeThrough', icon: <Strikethrough size={18} />, title: 'Strikethrough' },
-    { separator: true },
-    { command: 'insertUnorderedList', icon: <List size={18} />, title: 'Bullet List' },
-    { command: 'insertOrderedList', icon: <ListOrdered size={18} />, title: 'Numbered List' },
-    { separator: true },
-    { command: 'formatBlock', value: 'h1', icon: <Heading1 size={18} />, title: 'Heading 1' },
-    { command: 'formatBlock', value: 'h2', icon: <Heading2 size={18} />, title: 'Heading 2' },
-    { command: 'formatBlock', value: 'p', icon: <Type size={18} />, title: 'Paragraph' },
-    { separator: true },
-    { command: 'justifyLeft', icon: <AlignLeft size={18} />, title: 'Align Left' },
-    { command: 'justifyCenter', icon: <AlignCenter size={18} />, title: 'Center' },
-    { command: 'justifyRight', icon: <AlignRight size={18} />, title: 'Align Right' },
-    { separator: true },
-    { command: 'createLink', icon: <LinkIcon size={18} />, title: 'Insert Link' },
+  const handleFormatBlock = (value: string) => {
+    executeCommand("formatBlock", value);
+  };
+
+  const buttonConfigs = [
+    {
+      id: "bold",
+      command: "bold",
+      icon: <Bold size={18} />,
+      title: "Bold",
+      onClick: () => executeCommand("bold"),
+    },
+    {
+      id: "italic",
+      command: "italic",
+      icon: <Italic size={18} />,
+      title: "Italic",
+      onClick: () => executeCommand("italic"),
+    },
+    {
+      id: "underline",
+      command: "underline",
+      icon: <Underline size={18} />,
+      title: "Underline",
+      onClick: () => executeCommand("underline"),
+    },
+    {
+      id: "strikeThrough",
+      command: "strikeThrough",
+      icon: <Strikethrough size={18} />,
+      title: "Strikethrough",
+      onClick: () => executeCommand("strikeThrough"),
+    },
+    { id: "separator-1", separator: true },
+    {
+      id: "unordered-list",
+      command: "insertUnorderedList",
+      icon: <List size={18} />,
+      title: "Bullet List",
+      onClick: () => executeCommand("insertUnorderedList"),
+    },
+    {
+      id: "ordered-list",
+      command: "insertOrderedList",
+      icon: <ListOrdered size={18} />,
+      title: "Numbered List",
+      onClick: () => executeCommand("insertOrderedList"),
+    },
+    { id: "separator-2", separator: true },
+    {
+      id: "heading-1",
+      command: "formatBlock",
+      value: "h1",
+      icon: <Heading1 size={18} />,
+      title: "Heading 1",
+      onClick: () => handleFormatBlock("<h1>"),
+    },
+    {
+      id: "heading-2",
+      command: "formatBlock",
+      value: "h2",
+      icon: <Heading2 size={18} />,
+      title: "Heading 2",
+      onClick: () => handleFormatBlock("<h2>"),
+    },
+    {
+      id: "paragraph",
+      command: "formatBlock",
+      value: "p",
+      icon: <Type size={18} />,
+      title: "Paragraph",
+      onClick: () => handleFormatBlock("<p>"),
+    },
+    { id: "separator-3", separator: true },
+    {
+      id: "align-left",
+      command: "justifyLeft",
+      icon: <AlignLeft size={18} />,
+      title: "Align Left",
+      onClick: () => executeCommand("justifyLeft"),
+    },
+    {
+      id: "align-center",
+      command: "justifyCenter",
+      icon: <AlignCenter size={18} />,
+      title: "Center",
+      onClick: () => executeCommand("justifyCenter"),
+    },
+    {
+      id: "align-right",
+      command: "justifyRight",
+      icon: <AlignRight size={18} />,
+      title: "Align Right",
+      onClick: () => executeCommand("justifyRight"),
+    },
+    { id: "separator-4", separator: true },
+    {
+      id: "link",
+      command: "createLink",
+      icon: <LinkIcon size={18} />,
+      title: "Insert Link",
+      onClick: handleLinkInsert,
+    },
   ];
 
   return (
     <div className="flex flex-wrap justify-between items-center p-3 bg-gray-50 border-b border-gray-200">
       {/* Formatting section */}
       <div className="flex flex-wrap items-center gap-1">
-        {buttons.map((button, index) => {
-          if ('separator' in button) {
-            return <div key={index} className="w-px h-6 bg-gray-300 mx-2 inline" />;
+        {buttonConfigs.map((button) => {
+          if ("separator" in button) {
+            return (
+              <div key={button.id} className="w-px h-6 bg-gray-300 mx-2" />
+            );
           }
 
           const isActive = activeFormats.includes(button.command);
 
           return (
             <button
-              key={index}
-              onClick={() =>
-                button.command === 'createLink'
-                  ? handleLinkInsert()
-                  : onCommand(button.command, button.value)
-              }
+              key={button.id}
+              onClick={button.onClick}
               title={button.title}
               type="button"
-              className={`w-9 h-9 flex items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition 
-                ${isActive ? 'bg-blue-100 text-blue-600 border-blue-300' : 'bg-white'}`}
+              className={`w-9 h-9 flex items-center justify-center rounded-md border transition-colors duration-200
+                ${
+                  isActive
+                    ? "bg-blue-100 text-blue-600 border-blue-300 hover:bg-blue-200"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
+                }`}
             >
               {button.icon}
             </button>
@@ -115,32 +196,37 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       </div>
 
       {/* Actions section */}
-      <div className="flex items-center gap-2 mt-2 sm:mt-0">
-        <button
-          onClick={onSave}
-          disabled={!hasUnsavedChanges}
-          title="Save Document"
-          className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition"
-        >
-          <Save size={16} /> Save
-        </button>
+      {showButtons && (
+        <div className="flex items-center gap-2 mt-2 sm:mt-0">
+          <button
+            onClick={onSave}
+            disabled={!hasUnsavedChanges}
+            title="Save Document"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors duration-200"
+          >
+            <Save size={16} />
+            <span>Save</span>
+          </button>
 
-        <button
-          onClick={onExport}
-          title="Export as HTML"
-          className="flex items-center gap-1 px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition"
-        >
-          <FileDown size={16} /> Export
-        </button>
+          <button
+            onClick={onExport}
+            title="Export as HTML"
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors duration-200"
+          >
+            <FileDown size={16} />
+            <span>Export</span>
+          </button>
 
-        <button
-          onClick={onClear}
-          title="Clear Editor"
-          className="flex items-center gap-1 px-3 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition"
-        >
-          <Trash2 size={16} /> Clear
-        </button>
-      </div>
+          <button
+            onClick={onClear}
+            title="Clear Editor"
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors duration-200"
+          >
+            <Trash2 size={16} />
+            <span>Clear</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

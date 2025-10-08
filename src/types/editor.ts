@@ -1,9 +1,11 @@
-// src/types/editor.ts
 export interface TextEditorProps {
   initialContent?: string;
   onSave?: (content: string, html: string) => void;
   onExport?: (html: string) => void;
-  className?: string;
+  onChange?: (content: string, html: string, title?: string) => void; // Add onChange
+  showButtons?: boolean; // Add hideToolbar
+  showSaveTitle?: boolean; // Add showSaveTitle
+  showStatusBar?: boolean; // Add showStatusBar
 }
 
 export interface ToolbarButton {
