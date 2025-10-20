@@ -108,8 +108,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     [updateTitle]
   );
 
-
-  console.log("  height : ",height)
   return (
     <div className="w-full max-w-6xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
       {showSaveTitle && (

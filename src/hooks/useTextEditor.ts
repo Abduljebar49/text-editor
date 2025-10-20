@@ -2,7 +2,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { EditorContentSchema, type EditorContent } from '../schemas/editor.schema';
 
-
 export const useTextEditor = (initialContent: string = '') => {
   const [editorState, setEditorState] = useState({
     content: initialContent,
@@ -13,19 +12,37 @@ export const useTextEditor = (initialContent: string = '') => {
   });
 
   const editorRef = useRef<HTMLDivElement>(null);
+  
+  // Track the previous initialContent to avoid unnecessary updates
+  const previousInitialContentRef = useRef<string>(initialContent);
 
   // Initialize or update editor content when initialContent changes
   useEffect(() => {
-    if (editorRef.current && initialContent !== editorState.content) {
-      editorRef.current.innerHTML = initialContent;
+    // Only update if initialContent actually changed and we're not in the middle of user editing
+    if (initialContent !== previousInitialContentRef.current) {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = initialContent;
+      }
+      
       setEditorState(prev => ({
         ...prev,
         content: initialContent,
         wordCount: initialContent.trim() ? initialContent.trim().split(/\s+/).length : 0,
         characterCount: initialContent.length,
+        hasUnsavedChanges: prev.hasUnsavedChanges, // Preserve unsaved changes state unless explicitly resetting
       }));
+      
+      previousInitialContentRef.current = initialContent;
     }
   }, [initialContent]);
+
+  // Separate effect for initial setup to handle browser refresh
+  useEffect(() => {
+    // Only run once on mount to set initial content
+    if (editorRef.current && !editorRef.current.innerHTML && initialContent) {
+      editorRef.current.innerHTML = initialContent;
+    }
+  }, []); // Empty dependency array - runs only on mount
 
   const updateContent = useCallback((content: string) => {
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
@@ -38,6 +55,9 @@ export const useTextEditor = (initialContent: string = '') => {
       characterCount,
       hasUnsavedChanges: true,
     }));
+
+    // Update the ref to track the current content for comparison
+    previousInitialContentRef.current = content;
   }, []);
 
   const updateTitle = useCallback((title: string) => {
@@ -50,8 +70,12 @@ export const useTextEditor = (initialContent: string = '') => {
 
   const executeCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
+    // Update content after executing command to reflect changes in state
+    if (editorRef.current) {
+      updateContent(editorRef.current.innerHTML);
+    }
     editorRef.current?.focus();
-  }, []);
+  }, [updateContent]);
 
   const getValidationResult = useCallback((): { success: boolean; data?: EditorContent; error?: string } => {
     try {
@@ -141,7 +165,23 @@ export const useTextEditor = (initialContent: string = '') => {
     if (editorRef.current) {
       editorRef.current.innerHTML = '';
     }
+    previousInitialContentRef.current = '';
   }, []);
+
+  // Reset to initial content function
+  const resetToInitial = useCallback(() => {
+    if (editorRef.current) {
+      editorRef.current.innerHTML = initialContent;
+    }
+    setEditorState(prev => ({
+      ...prev,
+      content: initialContent,
+      wordCount: initialContent.trim() ? initialContent.trim().split(/\s+/).length : 0,
+      characterCount: initialContent.length,
+      hasUnsavedChanges: false,
+    }));
+    previousInitialContentRef.current = initialContent;
+  }, [initialContent]);
 
   return {
     editorState,
@@ -152,5 +192,6 @@ export const useTextEditor = (initialContent: string = '') => {
     getValidationResult,
     exportToHTML,
     clearEditor,
+    resetToInitial,
   };
 };
