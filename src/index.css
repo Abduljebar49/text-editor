@@ -43,11 +43,6 @@
   }
 }
 
-/* Enhanced editor content styles */
-.editor-content {
-  @apply min-h-[500px] p-8;
-}
-
 .editor-content h1 {
   @apply text-3xl font-bold mt-6 mb-4 text-gray-800 border-b pb-2;
 }

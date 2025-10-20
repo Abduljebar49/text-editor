@@ -4,7 +4,12 @@ import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { useTextEditor } from "../hooks/useTextEditor";
 import type { TextEditorProps } from "../types/editor";
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 export const TextEditor: React.FC<TextEditorProps> = ({
   initialContent = "",
   onSave,
@@ -13,6 +18,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
   showButtons = false,
   showSaveTitle = false,
   showStatusBar = false,
+  height = "500px",
 }) => {
   const {
     editorState,
@@ -102,6 +108,8 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     [updateTitle]
   );
 
+
+  console.log("  height : ",height)
   return (
     <div className="w-full max-w-6xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
       {showSaveTitle && (
@@ -132,7 +140,10 @@ export const TextEditor: React.FC<TextEditorProps> = ({
 
       <div
         ref={editorRef}
-        className="editor-content min-h-[500px] p-8 border-none outline-none resize-none text-gray-700 leading-relaxed prose max-w-none"
+        className={cn(
+          "editor-content p-8 border-none outline-none resize-none text-gray-700 leading-relaxed prose max-w-none",
+          height || "min-h-[500px]" // Default fallback
+        )}
         contentEditable
         onInput={(e) => handleContentChange(e.currentTarget.innerHTML)}
         onBlur={(e) => handleContentChange(e.currentTarget.innerHTML)}
