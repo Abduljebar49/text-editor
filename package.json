@@ -1,6 +1,6 @@
 {
   "name": "@abduljebar/text-editor",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "A professional React text editor with export, save, and validation features",
   "type": "module",
   "main": "./dist/index.js",

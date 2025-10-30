@@ -1,3 +1,8 @@
+```tsx
+import '@abduljebar/text-editor/dist/index.css';
+import { TextEditor } from "@abduljebar/text-editor";
+```
+
 # @abduljebar/text-editor
 
 A modern, feature-rich React text editor component with beautiful styling and extensive customization options. Perfect for blogs, content management systems, and any application requiring rich text editing capabilities.
@@ -46,6 +51,7 @@ pnpm add @abduljebar/text-editor
 ## 🚀 Quick Start
 
 ```tsx
+import '@abduljebar/text-editor/dist/index.css';
 import { TextEditor } from "@abduljebar/text-editor";
 
 function App() {
@@ -68,6 +74,7 @@ function App() {
 ### Simple Implementation
 
 ```tsx
+import '@abduljebar/text-editor/dist/index.css';
 import { TextEditor } from "@abduljebar/text-editor";
 
 function MyEditor() {
@@ -105,6 +112,9 @@ function MyEditor() {
 ### Read-only Mode
 
 ```tsx
+import '@abduljebar/text-editor/dist/index.css';
+import { TextEditor } from "@abduljebar/text-editor";
+
 function ReadOnlyView() {
   return (
     <TextEditor
@@ -137,6 +147,7 @@ function ReadOnlyView() {
 For advanced usage and custom implementations:
 
 ```tsx
+import '@abduljebar/text-editor/dist/index.css';
 import { useTextEditor } from "@abduljebar/text-editor";
 
 function CustomEditor() {
@@ -205,6 +216,9 @@ The editor comes with beautiful default styling using Tailwind CSS classes:
 You can override the default styles by targeting the editor's CSS classes or using the `className` prop:
 
 ```tsx
+import '@abduljebar/text-editor/dist/index.css';
+import { TextEditor } from "@abduljebar/text-editor";
+
 <TextEditor
   className="custom-editor-styles"
   // ... other props
@@ -226,6 +240,7 @@ You can override the default styles by targeting the editor's CSS classes or usi
 ### Integration with Form Libraries
 
 ```tsx
+import '@abduljebar/text-editor/dist/index.css';
 import { useForm } from 'react-hook-form';
 import { TextEditor } from "@abduljebar/text-editor";
 
@@ -256,6 +271,7 @@ function ArticleForm() {
 ### Custom Toolbar Implementation
 
 ```tsx
+import '@abduljebar/text-editor/dist/index.css';
 import { useTextEditor } from "@abduljebar/text-editor";
 
 function CustomToolbarEditor() {
