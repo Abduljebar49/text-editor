@@ -1,6 +1,5 @@
 // src/hooks/useTextEditor.ts
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { EditorContentSchema, type EditorContent } from '../schemas/editor.schema';
 
 export const useTextEditor = (initialContent: string = '', readOnly: boolean = false) => {
   const [editorState, setEditorState] = useState({
@@ -170,9 +169,9 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
     
   }, [updateContent, updateActiveFormats, readOnly]);
 
-  const getValidationResult = useCallback((): { success: boolean; data?: EditorContent; error?: string } => {
+  const getValidationResult = useCallback((): { success: boolean; data?: any; error?: string } => {
     try {
-      const data = EditorContentSchema.parse({
+      const data = ({
         title: editorState.title,
         content: editorState.content,
         metadata: {

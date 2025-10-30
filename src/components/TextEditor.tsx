@@ -32,7 +32,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
   const [showTextColorPicker, setShowTextColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
   const [title, setTitle] = useState("Untitled Document");
-  const [content, setContent] = useState(initialContent);
   const [activeFormats, setActiveFormats] = useState({
     bold: false,
     italic: false,
@@ -44,7 +43,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
   useEffect(() => {
     if (editorRef.current && initialContent) {
       editorRef.current.innerHTML = initialContent;
-      setContent(initialContent);
+      // setContent(initialContent);
       applyEditorStyles();
     }
   }, [initialContent]);
@@ -134,7 +133,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     
     const html = editorRef.current.innerHTML || "";
     const text = editorRef.current.innerText || "";
-    setContent(html);
+    // setContent(html);
     onChange?.(text, html, title);
 
     // Apply styles to any new elements

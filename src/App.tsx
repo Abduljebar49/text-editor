@@ -8,7 +8,7 @@ function App() {
       // showButtons={true}
       // showSaveTitle={true}
       // showStatusBar={true}
-      readOnly={true}
+      // readOnly={true}
       onChange={(content, html, title) => {
         console.log("Content changed:", content);
         console.log("HTML changed:", html);
