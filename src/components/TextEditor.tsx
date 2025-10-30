@@ -43,7 +43,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
   useEffect(() => {
     if (editorRef.current && initialContent) {
       editorRef.current.innerHTML = initialContent;
-      // setContent(initialContent);
       applyEditorStyles();
     }
   }, [initialContent]);
@@ -133,7 +132,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     
     const html = editorRef.current.innerHTML || "";
     const text = editorRef.current.innerText || "";
-    // setContent(html);
     onChange?.(text, html, title);
 
     // Apply styles to any new elements
@@ -148,7 +146,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     const text = editorRef.current?.innerText || "";
     onChange?.(text, html, newTitle);
   };
-
 
   // Enhanced format block command with styling
   const formatBlockWithStyle = useCallback((tagName: string) => {
@@ -218,11 +215,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     }
   };
 
-  
-
-  // ---- Handle Content Updates ----
-  
-
   // ---- Command Execution ----
   const exec = useCallback(
     (command: string, value?: string) => {
@@ -261,14 +253,28 @@ export const TextEditor: React.FC<TextEditorProps> = ({
 
   // ---- Color Palettes ----
   const textColors = [
-    "#000000", "#FF0000", "#FF9900", "#FFFF00", "#00FF00",
-    "#00FFFF", "#4A86E8", "#9900FF", "#FF00FF", "#FFFFFF",
+    "#000000", "#FFFFFF", "#FF0000", "#00FF00", "#0000FF", 
+    "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080",
+    "#008000", "#800000", "#008080", "#000080", "#808080",
+    "#A52A2A", "#FFC0CB", "#FFD700", "#90EE90", "#ADD8E6"
   ];
 
   const bgColors = [
-    "#FFFFFF", "#FFE6E6", "#FFF2CC", "#FFFFCC", "#E6FFE6",
-    "#E6FFFF", "#E6F0FF", "#F0E6FF", "#FFE6FF", "#000000",
+    "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF",
+    "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080",
+    "#008000", "#800000", "#008080", "#000080", "#808080",
+    "#FFE4E1", "#F0FFF0", "#F0F8FF", "#FFFACD", "#F5F5F5",
+    "#E6E6FA", "#FFEFD5", "#F0E68C", "#F5DEB3", "#D3D3D3"
   ];
+
+  // Color application functions
+  const applyTextColor = useCallback((color: string) => {
+    exec("foreColor", color);
+  }, [exec]);
+
+  const applyBackgroundColor = useCallback((color: string) => {
+    exec("hiliteColor", color);
+  }, [exec]);
 
   // ---- Action Handlers ----
   const handleSave = useCallback(() => {
@@ -326,7 +332,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
         <span className="absolute -bottom-1 -right-1 text-[8px]">▼</span>
       </ToolbarButton>
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-2 grid grid-cols-5 gap-1 z-20 min-w-[120px]">
+        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-2 grid grid-cols-5 gap-1 z-20 min-w-[140px]">
           {colors.map((color) => (
             <button
               key={color}
@@ -438,6 +444,44 @@ export const TextEditor: React.FC<TextEditorProps> = ({
 
           <ToolbarDivider />
 
+          {/* Text Color */}
+          <ColorPicker
+            colors={textColors}
+            onColorSelect={applyTextColor}
+            isOpen={showTextColorPicker}
+            onToggle={() => {
+              setShowTextColorPicker(!showTextColorPicker);
+              setShowBgColorPicker(false);
+            }}
+            buttonContent={
+              <div className="flex flex-col items-center">
+                <span className="text-xs font-bold">A</span>
+                <div className="w-3 h-1 bg-red-500 mt-[-2px]" />
+              </div>
+            }
+            title="Text Color"
+          />
+
+          {/* Background Color */}
+          <ColorPicker
+            colors={bgColors}
+            onColorSelect={applyBackgroundColor}
+            isOpen={showBgColorPicker}
+            onToggle={() => {
+              setShowBgColorPicker(!showBgColorPicker);
+              setShowTextColorPicker(false);
+            }}
+            buttonContent={
+              <div className="flex flex-col items-center">
+                <div className="w-4 h-3 border border-gray-400 bg-yellow-200" />
+                <span className="text-[8px] mt-[-2px]">Bg</span>
+              </div>
+            }
+            title="Background Color"
+          />
+
+          <ToolbarDivider />
+
           {/* Lists */}
           <ToolbarButton
             onClick={() => exec("insertUnorderedList")}
@@ -506,11 +550,17 @@ export const TextEditor: React.FC<TextEditorProps> = ({
 
           {/* Actions */}
           <ToolbarButton onClick={() => exec("undo")} title="Undo">
-            <span className="text-sm">↶</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7.18 4.8a1 1 0 0 1 .77 1.84A7.8 7.8 0 1 0 16 12a1 1 0 1 1 2 0 9.8 9.8 0 1 1-9.37-9.88 1 1 0 0 1 .55.68Z"/>
+              <path d="M11.29 7.71a1 1 0 0 1 0 1.42L9.41 11H17a1 1 0 1 1 0 2H9.41l1.88 1.88a1 1 0 0 1-1.42 1.41l-3.58-3.59a1 1 0 0 1 0-1.41l3.58-3.59a1 1 0 0 1 1.42 0Z"/>
+            </svg>
           </ToolbarButton>
 
           <ToolbarButton onClick={() => exec("redo")} title="Redo">
-            <span className="text-sm">↷</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16.82 4.8a1 1 0 0 0-.77 1.84A7.8 7.8 0 1 1 8 12a1 1 0 1 0-2 0 9.8 9.8 0 1 0 9.37-9.88 1 1 0 0 0-.55.68Z"/>
+              <path d="M12.71 7.71a1 1 0 0 0 0 1.42L14.59 11H7a1 1 0 1 0 0 2h7.59l-1.88 1.88a1 1 0 1 0 1.42 1.41l3.58-3.59a1 1 0 0 0 0-1.41l-3.58-3.59a1 1 0 0 0-1.42 0Z"/>
+            </svg>
           </ToolbarButton>
         </div>
       )}

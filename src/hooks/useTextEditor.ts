@@ -54,7 +54,7 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
     if (selection && selection.rangeCount > 0) {
       const node = selection.getRangeAt(0).startContainer.parentElement;
       const tagName = node?.tagName?.toLowerCase();
-      
+
       setActiveFormats(prev => ({
         ...prev,
         h1: tagName === 'h1',
@@ -74,7 +74,7 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
       if (editorRef.current) {
         editorRef.current.innerHTML = initialContent;
       }
-      
+
       setEditorState(prev => ({
         ...prev,
         content: initialContent,
@@ -82,7 +82,7 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
         characterCount: initialContent.length,
         hasUnsavedChanges: readOnly ? false : prev.hasUnsavedChanges,
       }));
-      
+
       previousInitialContentRef.current = initialContent;
     }
   }, [initialContent, readOnly]);
@@ -108,7 +108,7 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
 
   const updateContent = useCallback((content: string) => {
     if (readOnly) return;
-    
+
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
     const characterCount = content.length;
 
@@ -125,7 +125,7 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
 
   const updateTitle = useCallback((title: string) => {
     if (readOnly) return;
-    
+
     setEditorState(prev => ({
       ...prev,
       title,
@@ -135,11 +135,11 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
 
   const executeCommand = useCallback((command: string, value?: string) => {
     if (readOnly || !editorRef.current) return;
-    
+
     // Save current selection
     const selection = window.getSelection();
     const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-    
+
     // For toggle commands, use queryCommandState to determine if we should remove formatting
     if (command === 'bold' || command === 'italic' || command === 'underline' || command === 'strikeThrough') {
       const isActive = document.queryCommandState(command);
@@ -154,19 +154,19 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
       // Execute normal command
       document.execCommand(command, false, value);
     }
-    
+
     // Update content state
     updateContent(editorRef.current.innerHTML);
-    
+
     // Update active formats
     updateActiveFormats();
-    
+
     // Restore selection
     if (range && selection) {
       selection.removeAllRanges();
       selection.addRange(range);
     }
-    
+
   }, [updateContent, updateActiveFormats, readOnly]);
 
   const getValidationResult = useCallback((): { success: boolean; data?: any; error?: string } => {
@@ -255,7 +255,7 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
 
   const clearEditor = useCallback(() => {
     if (readOnly) return;
-    
+
     setEditorState({
       content: '',
       title: 'Untitled Document',
@@ -286,7 +286,7 @@ export const useTextEditor = (initialContent: string = '', readOnly: boolean = f
 
   const resetToInitial = useCallback(() => {
     if (readOnly) return;
-    
+
     if (editorRef.current) {
       editorRef.current.innerHTML = initialContent;
     }
