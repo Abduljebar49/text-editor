@@ -7,6 +7,7 @@ export interface TextEditorProps {
   showSaveTitle?: boolean;
   showStatusBar?: boolean;
   height?: string | number;
+  readOnly?: boolean;
 }
 
 export interface ToolbarButton {

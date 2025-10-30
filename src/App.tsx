@@ -5,6 +5,10 @@ function App() {
   return (
     <TextEditor
       height={"min-h-[400px]"}
+      // showButtons={true}
+      // showSaveTitle={true}
+      // showStatusBar={true}
+      readOnly={true}
       onChange={(content, html, title) => {
         console.log("Content changed:", content);
         console.log("HTML changed:", html);

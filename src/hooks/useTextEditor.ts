@@ -2,7 +2,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { EditorContentSchema, type EditorContent } from '../schemas/editor.schema';
 
-export const useTextEditor = (initialContent: string = '') => {
+export const useTextEditor = (initialContent: string = '', readOnly: boolean = false) => {
   const [editorState, setEditorState] = useState({
     content: initialContent,
     title: 'Untitled Document',
@@ -11,14 +11,66 @@ export const useTextEditor = (initialContent: string = '') => {
     hasUnsavedChanges: false,
   });
 
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strikeThrough: false,
+    justifyLeft: false,
+    justifyCenter: false,
+    justifyRight: false,
+    justifyFull: false,
+    insertUnorderedList: false,
+    insertOrderedList: false,
+    h1: false,
+    h2: false,
+    h3: false,
+  });
+
+  const [isLinkActive, setIsLinkActive] = useState(false);
+
   const editorRef = useRef<HTMLDivElement>(null);
-  
-  // Track the previous initialContent to avoid unnecessary updates
   const previousInitialContentRef = useRef<string>(initialContent);
+
+  // Update active formats based on current selection
+  const updateActiveFormats = useCallback(() => {
+    if (readOnly || !document.queryCommandSupported) return;
+
+    setActiveFormats(prev => ({
+      ...prev,
+      bold: document.queryCommandState('bold'),
+      italic: document.queryCommandState('italic'),
+      underline: document.queryCommandState('underline'),
+      strikeThrough: document.queryCommandState('strikeThrough'),
+      justifyLeft: document.queryCommandState('justifyLeft'),
+      justifyCenter: document.queryCommandState('justifyCenter'),
+      justifyRight: document.queryCommandState('justifyRight'),
+      justifyFull: document.queryCommandState('justifyFull'),
+      insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+      insertOrderedList: document.queryCommandState('insertOrderedList'),
+    }));
+
+    // Check for heading formats
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const node = selection.getRangeAt(0).startContainer.parentElement;
+      const tagName = node?.tagName?.toLowerCase();
+      
+      setActiveFormats(prev => ({
+        ...prev,
+        h1: tagName === 'h1',
+        h2: tagName === 'h2',
+        h3: tagName === 'h3',
+      }));
+
+      // Check for links
+      const linkElement = node?.closest('a');
+      setIsLinkActive(!!linkElement);
+    }
+  }, [readOnly]);
 
   // Initialize or update editor content when initialContent changes
   useEffect(() => {
-    // Only update if initialContent actually changed and we're not in the middle of user editing
     if (initialContent !== previousInitialContentRef.current) {
       if (editorRef.current) {
         editorRef.current.innerHTML = initialContent;
@@ -29,22 +81,35 @@ export const useTextEditor = (initialContent: string = '') => {
         content: initialContent,
         wordCount: initialContent.trim() ? initialContent.trim().split(/\s+/).length : 0,
         characterCount: initialContent.length,
-        hasUnsavedChanges: prev.hasUnsavedChanges, // Preserve unsaved changes state unless explicitly resetting
+        hasUnsavedChanges: readOnly ? false : prev.hasUnsavedChanges,
       }));
       
       previousInitialContentRef.current = initialContent;
     }
-  }, [initialContent]);
+  }, [initialContent, readOnly]);
 
-  // Separate effect for initial setup to handle browser refresh
+  // Set up event listeners for selection changes
   useEffect(() => {
-    // Only run once on mount to set initial content
+    if (readOnly) return;
+
+    const handleSelectionChange = () => {
+      updateActiveFormats();
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, [readOnly, updateActiveFormats]);
+
+  // Separate effect for initial setup
+  useEffect(() => {
     if (editorRef.current && !editorRef.current.innerHTML && initialContent) {
       editorRef.current.innerHTML = initialContent;
     }
-  }, []); // Empty dependency array - runs only on mount
+  }, []);
 
   const updateContent = useCallback((content: string) => {
+    if (readOnly) return;
+    
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
     const characterCount = content.length;
 
@@ -56,26 +121,54 @@ export const useTextEditor = (initialContent: string = '') => {
       hasUnsavedChanges: true,
     }));
 
-    // Update the ref to track the current content for comparison
     previousInitialContentRef.current = content;
-  }, []);
+  }, [readOnly]);
 
   const updateTitle = useCallback((title: string) => {
+    if (readOnly) return;
+    
     setEditorState(prev => ({
       ...prev,
       title,
       hasUnsavedChanges: true,
     }));
-  }, []);
+  }, [readOnly]);
 
   const executeCommand = useCallback((command: string, value?: string) => {
-    document.execCommand(command, false, value);
-    // Update content after executing command to reflect changes in state
-    if (editorRef.current) {
-      updateContent(editorRef.current.innerHTML);
+    if (readOnly || !editorRef.current) return;
+    
+    // Save current selection
+    const selection = window.getSelection();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    
+    // For toggle commands, use queryCommandState to determine if we should remove formatting
+    if (command === 'bold' || command === 'italic' || command === 'underline' || command === 'strikeThrough') {
+      const isActive = document.queryCommandState(command);
+      if (isActive) {
+        // Remove formatting
+        document.execCommand(command, false, undefined);
+      } else {
+        // Apply formatting
+        document.execCommand(command, false, value);
+      }
+    } else {
+      // Execute normal command
+      document.execCommand(command, false, value);
     }
-    editorRef.current?.focus();
-  }, [updateContent]);
+    
+    // Update content state
+    updateContent(editorRef.current.innerHTML);
+    
+    // Update active formats
+    updateActiveFormats();
+    
+    // Restore selection
+    if (range && selection) {
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    
+  }, [updateContent, updateActiveFormats, readOnly]);
 
   const getValidationResult = useCallback((): { success: boolean; data?: EditorContent; error?: string } => {
     try {
@@ -115,16 +208,23 @@ export const useTextEditor = (initialContent: string = '') => {
         html += `
   <style>
     body { 
-      font-family: Arial, sans-serif; 
+      font-family: system-ui, -apple-system, sans-serif; 
       line-height: 1.6; 
       margin: 40px; 
       max-width: 800px; 
+      background: #f8fafc;
     }
     .editor-content { 
-      border: 1px solid #ddd; 
-      padding: 20px; 
-      border-radius: 8px; 
+      border: 1px solid #e2e8f0; 
+      padding: 24px; 
+      border-radius: 12px; 
       background: white;
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    }
+    .readonly-content {
+      background: #f9f9f9;
+      cursor: default;
+      user-select: text;
     }
   </style>`;
       }
@@ -143,7 +243,7 @@ export const useTextEditor = (initialContent: string = '') => {
       }
 
       html += `
-  <div class="editor-content">
+  <div class="${options.includeStyles ? 'readonly-content' : ''}">
     ${data?.content}
   </div>
 </body>
@@ -155,6 +255,8 @@ export const useTextEditor = (initialContent: string = '') => {
   );
 
   const clearEditor = useCallback(() => {
+    if (readOnly) return;
+    
     setEditorState({
       content: '',
       title: 'Untitled Document',
@@ -166,10 +268,26 @@ export const useTextEditor = (initialContent: string = '') => {
       editorRef.current.innerHTML = '';
     }
     previousInitialContentRef.current = '';
-  }, []);
+    setActiveFormats({
+      bold: false,
+      italic: false,
+      underline: false,
+      strikeThrough: false,
+      justifyLeft: false,
+      justifyCenter: false,
+      justifyRight: false,
+      justifyFull: false,
+      insertUnorderedList: false,
+      insertOrderedList: false,
+      h1: false,
+      h2: false,
+      h3: false,
+    });
+  }, [readOnly]);
 
-  // Reset to initial content function
   const resetToInitial = useCallback(() => {
+    if (readOnly) return;
+    
     if (editorRef.current) {
       editorRef.current.innerHTML = initialContent;
     }
@@ -181,7 +299,7 @@ export const useTextEditor = (initialContent: string = '') => {
       hasUnsavedChanges: false,
     }));
     previousInitialContentRef.current = initialContent;
-  }, [initialContent]);
+  }, [initialContent, readOnly]);
 
   return {
     editorState,
@@ -193,5 +311,7 @@ export const useTextEditor = (initialContent: string = '') => {
     exportToHTML,
     clearEditor,
     resetToInitial,
+    activeFormats,
+    isLinkActive,
   };
 };
