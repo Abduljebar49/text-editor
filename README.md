@@ -1,13 +1,16 @@
-```markdown
+```tsx
+import '@abduljebar/text-editor/dist/index.css';
+import { TextEditor } from "@abduljebar/text-editor";
+```
+
 # @abduljebar/text-editor
 
-A modern, feature-rich React text editor component with beautiful styling and extensive customization options. Built to solve the dilemma of choosing between expensive enterprise editors and complex free alternatives. Perfect for blogs, content management systems, and any application requiring rich text editing capabilities.
+A modern, feature-rich React text editor component with beautiful styling and extensive customization options. Perfect for blogs, content management systems, and any application requiring rich text editing capabilities.
 
 ## ✨ Features
 
 ### 🎨 Rich Text Editing
 - **Text Formatting**: Bold, italic, underline, strikethrough
-- **Text Alignment**: Left, center, right, and full justification with intuitive icons
 - **Color Support**: 20 text colors & 25 background colors with intuitive pickers
 - **Headings**: H1, H2, H3 with automatic styling
 - **Lists**: Bulleted and numbered lists
@@ -18,7 +21,7 @@ A modern, feature-rich React text editor component with beautiful styling and ex
 - **Auto-styling**: Automatic application of beautiful Tailwind CSS styles
 - **Contextual Toolbar**: Appears only when focused and editable
 - **Real-time Stats**: Word and character count in status bar
-- **Smart Format Detection**: Visual indicators for active text formats and alignment
+- **Smart Format Detection**: Visual indicators for active text formats
 - **Tab Support**: Indentation with Tab key
 
 ### 🔧 Flexible Configuration
@@ -192,7 +195,7 @@ function CustomEditor() {
 | `exportToHTML` | `(options?) => string` | Generate HTML export |
 | `clearEditor` | `() => void` | Clear all content |
 | `resetToInitial` | `() => void` | Reset to initial content |
-| `activeFormats` | `object` | Current active text formats and alignment |
+| `activeFormats` | `object` | Current active text formats |
 | `isLinkActive` | `boolean` | Whether a link is currently selected |
 
 ## 🎨 Styling & Customization
@@ -202,12 +205,11 @@ function CustomEditor() {
 The editor comes with beautiful default styling using Tailwind CSS classes:
 
 - **Headings**: Proper hierarchy with borders and spacing
-- **Paragraphs**: Optimal line height and margins with alignment support
+- **Paragraphs**: Optimal line height and margins
 - **Lists**: Clean indentation and spacing
 - **Code Blocks**: Dark theme with proper monospace fonts
 - **Quotes**: Elegant bordered design
 - **Links**: Blue color with hover effects
-- **Alignment**: Full text alignment support (left, center, right, justify)
 
 ### Custom Styling
 
@@ -290,19 +292,6 @@ function CustomToolbarEditor() {
         >
           I
         </button>
-        {/* Alignment buttons */}
-        <button 
-          onClick={() => executeCommand('justifyLeft')}
-          className={activeFormats.justifyLeft ? 'active' : ''}
-        >
-          Left
-        </button>
-        <button 
-          onClick={() => executeCommand('justifyCenter')}
-          className={activeFormats.justifyCenter ? 'active' : ''}
-        >
-          Center
-        </button>
         {/* Add more custom buttons */}
       </div>
       <div
@@ -337,7 +326,7 @@ function CustomToolbarEditor() {
 ## 🔒 Accessibility
 
 - Keyboard navigation support
-- ARIA labels for toolbar buttons including alignment options
+- ARIA labels for toolbar buttons
 - Focus management
 - Screen reader compatible
 
@@ -348,7 +337,6 @@ function CustomToolbarEditor() {
 1. **Content not updating**: Ensure you're using the `onChange` callback properly
 2. **Styles not applying**: Make sure Tailwind CSS is properly configured in your project
 3. **Toolbar not appearing**: Check that `readOnly` is set to `false` and the editor is focused
-4. **Alignment not working**: Verify browser support for `execCommand` alignment methods
 
 ### Performance Tips
 
@@ -374,12 +362,6 @@ If you encounter any issues or have questions:
 
 ## 🚀 Changelog
 
-### v1.1.0
-- **New**: Text alignment support (left, center, right, justify)
-- **New**: Alignment state tracking in active formats
-- **Enhanced**: Updated toolbar with alignment icons
-- **Improved**: Better format detection for alignment states
-
 ### v1.0.0
 - Initial release with core editing features
 - Comprehensive text formatting options
@@ -388,36 +370,4 @@ If you encounter any issues or have questions:
 
 ---
 
-## Why Choose This Editor?
-
-### 🆓 Free & Open Source
-No hidden costs, no premium features locked behind paywalls. Everything is available from day one.
-
-### 🎯 Easy to Use
-Designed with developer experience in mind. No complex configuration needed to get started.
-
-### 🔧 Built for Developers
-- Full TypeScript support
-- Flexible API
-- Customizable at every level
-- No unnecessary dependencies
-
-### ⚡ Production Ready
-- Comprehensive browser support
-- Accessibility features
-- Performance optimized
-- Regular updates and maintenance
-
-Built with ❤️ by [AbdulJebar Sani](https://github.com/abduljebar49) - Solving real problems for developers
-```
-
-Key updates to the README:
-1. **Added text alignment** as a key feature in multiple sections
-2. **Updated feature list** to highlight alignment capabilities
-3. **Enhanced examples** with alignment usage
-4. **Added "Why Choose This Editor"** section to address the pain points mentioned in the LinkedIn post
-5. **Updated changelog** to reflect the new alignment feature
-6. **Improved descriptions** to emphasize the free and easy-to-use nature
-7. **Enhanced troubleshooting** with alignment-specific notes
-
-The README now better reflects the value proposition of solving the "free vs usable" dilemma while showcasing the new alignment features.
+Built with ❤️ by [AbdulJebar Sani](https://github.com/abduljebar49)
