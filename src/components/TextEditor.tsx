@@ -37,6 +37,10 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     italic: false,
     underline: false,
     strikeThrough: false,
+    justifyLeft: false,
+    justifyCenter: false,
+    justifyRight: false,
+    justifyFull: false,
   });
 
   // Initialize content with proper styling
@@ -107,12 +111,16 @@ export const TextEditor: React.FC<TextEditorProps> = ({
     
     try {
       const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0 && selection.toString().length > 0) {
+      if (selection && selection.rangeCount > 0) {
         setActiveFormats({
           bold: document.queryCommandState("bold"),
           italic: document.queryCommandState("italic"),
           underline: document.queryCommandState("underline"),
           strikeThrough: document.queryCommandState("strikeThrough"),
+          justifyLeft: document.queryCommandState("justifyLeft"),
+          justifyCenter: document.queryCommandState("justifyCenter"),
+          justifyRight: document.queryCommandState("justifyRight"),
+          justifyFull: document.queryCommandState("justifyFull"),
         });
       } else {
         setActiveFormats({
@@ -120,6 +128,10 @@ export const TextEditor: React.FC<TextEditorProps> = ({
           italic: false,
           underline: false,
           strikeThrough: false,
+          justifyLeft: false,
+          justifyCenter: false,
+          justifyRight: false,
+          justifyFull: false,
         });
       }
     } catch (error) {
@@ -440,6 +452,49 @@ export const TextEditor: React.FC<TextEditorProps> = ({
             isActive={activeFormats.underline}
           >
             <span className="underline text-sm">U</span>
+          </ToolbarButton>
+
+          <ToolbarDivider />
+
+          {/* Text Alignment */}
+          <ToolbarButton
+            onClick={() => exec("justifyLeft")}
+            title="Align Left"
+            isActive={activeFormats.justifyLeft}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 5h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h12a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h12a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2z"/>
+            </svg>
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => exec("justifyCenter")}
+            title="Align Center"
+            isActive={activeFormats.justifyCenter}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 5h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm3 4h12a1 1 0 1 0 0-2H6a1 1 0 1 0 0 2zm-3 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm3 4h12a1 1 0 1 0 0-2H6a1 1 0 1 0 0 2zm-3 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2z"/>
+            </svg>
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => exec("justifyRight")}
+            title="Align Right"
+            isActive={activeFormats.justifyRight}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 5h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm9 4h9a1 1 0 1 0 0-2h-9a1 1 0 1 0 0 2zm9 4H3a1 1 0 1 0 0 2h18a1 1 0 1 0 0-2zm-9 4h9a1 1 0 1 0 0-2h-9a1 1 0 1 0 0 2zm9 4H3a1 1 0 1 0 0 2h18a1 1 0 1 0 0-2z"/>
+            </svg>
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => exec("justifyFull")}
+            title="Justify"
+            isActive={activeFormats.justifyFull}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 5h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2z"/>
+            </svg>
           </ToolbarButton>
 
           <ToolbarDivider />
