@@ -1,7 +1,5 @@
 // src/hooks/useTextEditor.ts
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { EditorContentSchema, type EditorContent } from '../schemas/editor.schema';
-import type { TextEditorProps, ImageData } from '../types/editor';
 
 interface UseTextEditorProps {
   initialContent: string;
@@ -9,6 +7,17 @@ interface UseTextEditorProps {
   imageUploadEndpoint?: string;
   allowedImageTypes: string[];
   maxImageSize: number;
+}
+
+interface EditorContent {
+  title: string;
+  content: string;
+  metadata: {
+    createdAt: string;
+    updatedAt: string;
+    wordCount: number;
+    characterCount: number;
+  };
 }
 
 export const useTextEditor = ({
@@ -32,54 +41,35 @@ export const useTextEditor = ({
     }>,
   });
 
-  const editorRef = useRef<HTMLDivElement>(null);
-  const imageMap = useRef<Map<string, ImageData>>(new Map());
+  const editorRef:any = useRef<HTMLDivElement>(null);
+  const imageMap = useRef<Map<string, any>>(new Map());
+  const previousInitialContentRef = useRef<string>(initialContent);
 
   // Initialize or update editor content when initialContent changes
   useEffect(() => {
-    if (editorRef.current && initialContent !== editorState.content) {
-      editorRef.current.innerHTML = initialContent;
-      
-      // Extract existing images from content
-      extractImagesFromContent(initialContent);
-      
+    if (initialContent !== previousInitialContentRef.current) {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = initialContent;
+      }
+
       setEditorState(prev => ({
         ...prev,
         content: initialContent,
         wordCount: initialContent.trim() ? initialContent.trim().split(/\s+/).length : 0,
         characterCount: initialContent.length,
+        hasUnsavedChanges: false,
       }));
+
+      previousInitialContentRef.current = initialContent;
     }
   }, [initialContent]);
 
-  // Extract images from HTML content
-  const extractImagesFromContent = (html: string) => {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    const images = doc.querySelectorAll('img');
-    
-    images.forEach((img, index) => {
-      const src = img.getAttribute('src');
-      if (src && src.startsWith('data:')) {
-        // This is a data URL, mark it for upload
-        const id = `image-${Date.now()}-${index}`;
-        img.setAttribute('data-image-id', id);
-        imageMap.current.set(id, {
-          originalUrl: src,
-          alt: img.getAttribute('alt') || '',
-        });
-      } else if (src) {
-        // This is already a URL
-        const id = `image-${Date.now()}-${index}`;
-        img.setAttribute('data-image-id', id);
-        imageMap.current.set(id, {
-          originalUrl: src,
-          uploadedUrl: src,
-          alt: img.getAttribute('alt') || '',
-        });
-      }
-    });
-  };
+  // Separate effect for initial setup
+  useEffect(() => {
+    if (editorRef.current && !editorRef.current.innerHTML && initialContent) {
+      editorRef.current.innerHTML = initialContent;
+    }
+  }, [initialContent]);
 
   const updateContent = useCallback((content: string) => {
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
@@ -92,6 +82,8 @@ export const useTextEditor = ({
       characterCount,
       hasUnsavedChanges: true,
     }));
+
+    previousInitialContentRef.current = content;
   }, []);
 
   const updateTitle = useCallback((title: string) => {
@@ -103,13 +95,14 @@ export const useTextEditor = ({
   }, []);
 
   const executeCommand = useCallback((command: string, value?: string) => {
-    if (command === 'insertImage') {
-      // This will be handled by the toolbar button
-      return;
-    }
+    if (!editorRef.current) return;
+    
+    editorRef.current.focus();
     document.execCommand(command, false, value);
-    editorRef.current?.focus();
-  }, []);
+    
+    // Update content after command execution
+    updateContent(editorRef.current.innerHTML);
+  }, [updateContent]);
 
   // Handle image file validation
   const validateImageFile = (file: File): { valid: boolean; error?: string } => {
@@ -138,6 +131,8 @@ export const useTextEditor = ({
       return;
     }
 
+    if (!editorRef.current) return;
+
     // Create a unique ID for this image
     const imageId = `image-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
@@ -155,7 +150,7 @@ export const useTextEditor = ({
       });
 
       // Create img element
-      const img = document.createElement('img');
+      const img:any = document.createElement('img');
       img.src = dataUrl;
       img.alt = file.name;
       img.className = 'image-uploading';
@@ -176,16 +171,14 @@ export const useTextEditor = ({
           selection.removeAllRanges();
           selection.addRange(range);
         } else {
-          editorRef.current?.appendChild(img);
+          editorRef.current.appendChild(img);
         }
       } else {
-        editorRef.current?.appendChild(img);
+        editorRef.current.appendChild(img);
       }
 
       // Update content
-      if (editorRef.current) {
-        updateContent(editorRef.current.innerHTML);
-      }
+      updateContent(editorRef.current.innerHTML);
 
       // Add to pending images if upload handler is provided
       if (onImageUpload || imageUploadEndpoint) {
@@ -337,39 +330,17 @@ export const useTextEditor = ({
 
   const getValidationResult = useCallback((): { success: boolean; data?: EditorContent; error?: string } => {
     try {
-      // Process content before validation
-      let processedContent = editorState.content;
-      
-      // Replace placeholder images with uploaded URLs
-      const images = editorRef.current?.querySelectorAll('img[data-image-id]');
-      images?.forEach((img:any) => {
-        const imageId = img.getAttribute('data-image-id');
-        if (imageId) {
-          const imageData = imageMap.current.get(imageId);
-          if (imageData?.uploadedUrl) {
-            img.src = imageData.uploadedUrl;
-          }
-        }
-      });
-      
-      if (editorRef.current) {
-        processedContent = editorRef.current.innerHTML;
-      }
-
-      const data = EditorContentSchema.parse({
+      const content = editorRef.current?.innerHTML || editorState.content;
+      const data: EditorContent = {
         title: editorState.title,
-        content: processedContent,
+        content,
         metadata: {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           wordCount: editorState.wordCount,
           characterCount: editorState.characterCount,
-          images: Array.from(imageMap.current.entries()).map(([id, imgData]) => ({
-            id,
-            ...imgData,
-          })),
         },
-      });
+      };
       return { success: true, data };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Validation failed' };
@@ -390,22 +361,29 @@ export const useTextEditor = ({
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${data?.title}</title>`;
+  <title>${data?.title || 'Document'}</title>`;
 
       if (options.includeStyles) {
         html += `
   <style>
     body { 
-      font-family: Arial, sans-serif; 
+      font-family: system-ui, -apple-system, sans-serif; 
       line-height: 1.6; 
       margin: 40px; 
       max-width: 800px; 
+      background: #f8fafc;
     }
     .editor-content { 
-      border: 1px solid #ddd; 
-      padding: 20px; 
-      border-radius: 8px; 
+      border: 1px solid #e2e8f0; 
+      padding: 24px; 
+      border-radius: 12px; 
       background: white;
+      box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    }
+    .readonly-content {
+      background: #f9f9f9;
+      cursor: default;
+      user-select: text;
     }
     img { 
       max-width: 100%; 
@@ -419,21 +397,20 @@ export const useTextEditor = ({
 
       html += `\n</head>\n<body>`;
 
-      if (options.includeMeta) {
+      if (options.includeMeta && data) {
         html += `
   <div class="document-meta">
-    <h1>${data?.title}</h1>
-    <p><small>Created: ${new Date(data?.metadata!.createdAt ?? "").toLocaleString()} | 
-    Words: ${data?.metadata!.wordCount} | 
-    Characters: ${data?.metadata!.characterCount} |
-    Images: ${imageMap.current.size}</small></p>
+    <h1>${data.title}</h1>
+    <p><small>Created: ${new Date(data.metadata.createdAt).toLocaleString()} | 
+    Words: ${data.metadata.wordCount} | 
+    Characters: ${data.metadata.characterCount}</small></p>
     <hr>
   </div>`;
       }
 
       html += `
-  <div class="editor-content">
-    ${data?.content}
+  <div class="${options.includeStyles ? 'readonly-content' : ''}">
+    ${data?.content || ''}
   </div>
 </body>
 </html>`;
@@ -456,6 +433,7 @@ export const useTextEditor = ({
     if (editorRef.current) {
       editorRef.current.innerHTML = '';
     }
+    previousInitialContentRef.current = '';
   }, []);
 
   return {

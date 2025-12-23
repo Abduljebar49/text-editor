@@ -12,6 +12,8 @@ export interface TextEditorProps {
   imageUploadEndpoint?: string; // Optional: API endpoint for uploads
   allowedImageTypes?: string[]; // Default: ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
   maxImageSize?: number; // Default: 5MB in bytes
+  height?: string | number;
+  readOnly?: boolean;
 }
 
 export interface ToolbarButton {
