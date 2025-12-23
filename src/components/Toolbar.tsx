@@ -17,8 +17,7 @@ import {
   Save,
   Trash2,
   Type,
-  Image as ImageIcon,
-  Upload,
+  Image as ImageIcon
 } from "lucide-react";
 
 interface ToolbarProps {

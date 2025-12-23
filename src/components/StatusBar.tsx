@@ -1,6 +1,6 @@
 // src/components/StatusBar.tsx - Minimal Version
 import React from 'react';
-import { Save, Image as ImageIcon, Upload, AlertCircle } from 'lucide-react';
+import { Save, Image as ImageIcon } from 'lucide-react';
 
 interface StatusBarProps {
   wordCount: number;

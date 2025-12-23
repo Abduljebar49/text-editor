@@ -61,7 +61,7 @@ export const TextEditor: React.FC<TextEditorProps> = ({
 
   const [showValidation, setShowValidation] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isFocused, setIsFocused] = useState(false);
+  // const [isFocused, setIsFocused] = useState(false);
 
   // Notify parent component when content or title changes
   useEffect(() => {
@@ -145,17 +145,6 @@ export const TextEditor: React.FC<TextEditorProps> = ({
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updateTitle(e.target.value);
-  };
-
-  // Handle focus/blur
-  const handleFocus = () => {
-    if (!readOnly) setIsFocused(true);
-  };
-
-  const handleBlur = () => {
-    if (!readOnly) {
-      setTimeout(() => setIsFocused(false), 200);
-    }
   };
 
   const handleImageUploadClick = () => {
@@ -266,8 +255,8 @@ export const TextEditor: React.FC<TextEditorProps> = ({
         )}
         contentEditable={!readOnly}
         suppressContentEditableWarning={true}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
+        // onFocus={handleFocus}
+        // onBlur={handleBlur}
         onInput={(e) => handleContentChange(e.currentTarget.innerHTML)}
         onPaste={handlePaste}
         onDrop={handleDrop}
