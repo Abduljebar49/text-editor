@@ -17,6 +17,8 @@ import {
   Save,
   Trash2,
   Type,
+  Image as ImageIcon,
+  Upload,
 } from "lucide-react";
 
 interface ToolbarProps {
@@ -24,8 +26,10 @@ interface ToolbarProps {
   onSave: () => void;
   onExport: () => void;
   onClear: () => void;
+  onImageUpload: () => void; // New prop for image upload
   showButtons?: boolean;
   hasUnsavedChanges: boolean;
+  pendingImagesCount?: number; // New prop to show count
 }
 
 export const Toolbar: React.FC<ToolbarProps> = ({
@@ -33,8 +37,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onSave,
   onExport,
   onClear,
+  onImageUpload,
   showButtons = false,
   hasUnsavedChanges,
+  pendingImagesCount = 0,
 }) => {
   const [activeFormats, setActiveFormats] = useState<string[]>([]);
   const [currentBlockFormat, setCurrentBlockFormat] = useState<string>("p");
@@ -201,6 +207,22 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       title: "Insert Link",
       onClick: handleLinkInsert,
     },
+    {
+      id: "image",
+      command: "insertImage",
+      icon: pendingImagesCount > 0 ? (
+        <div className="relative">
+          <ImageIcon size={18} />
+          <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+            {pendingImagesCount}
+          </span>
+        </div>
+      ) : (
+        <ImageIcon size={18} />
+      ),
+      title: "Insert Image",
+      onClick: onImageUpload,
+    },
   ];
 
   return (
@@ -230,12 +252,11 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               }
               title={button.title}
               type="button"
-              className={`w-9 h-9 flex items-center justify-center rounded-md border transition-colors duration-200
-                ${
-                  isActive
-                    ? "bg-blue-100 text-blue-600 border-blue-300 hover:bg-blue-200"
-                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
-                }`}
+              className={`w-9 h-9 flex items-center justify-center rounded-md border transition-colors duration-200 ${
+                isActive
+                  ? "bg-blue-100 text-blue-600 border-blue-300 hover:bg-blue-200"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
+              }`}
             >
               {button.icon}
             </button>
