@@ -1,10 +1,17 @@
 // src/components/TextEditor.tsx
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  forwardRef,
+} from "react";
 import { Toolbar } from "./Toolbar";
 import { StatusBar } from "./StatusBar";
 import { useTextEditor } from "../hooks/useTextEditor";
 import { Upload } from "lucide-react";
 import { cn } from "../utils";
+import debounce from "lodash/debounce";
 
 interface TextEditorProps {
   initialContent?: string;
@@ -16,90 +23,159 @@ interface TextEditorProps {
   showSaveTitle?: boolean;
   showStatusBar?: boolean;
   height?: string;
-  // New image-related props
   onImageUpload?: (file: File) => Promise<string>;
   imageUploadEndpoint?: string;
   allowedImageTypes?: string[];
   maxImageSize?: number;
+  onInit?: (editor: HTMLDivElement) => void;
+  debounceDelay?: number;
 }
 
-export const TextEditor: React.FC<TextEditorProps> = ({
-  initialContent = "",
-  onChange,
-  onSave,
-  onExport,
-  readOnly = false,
-  showButtons = false,
-  showSaveTitle = false,
-  showStatusBar = false,
-  height = "500px",
-  onImageUpload,
-  imageUploadEndpoint,
-  allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-  maxImageSize = 5 * 1024 * 1024, // 5MB default
-}) => {
-  const {
-    editorState,
-    editorRef,
-    updateContent,
-    updateTitle,
-    executeCommand,
-    getValidationResult,
-    exportToHTML,
-    clearEditor,
-    handlePaste,
-    handleDrop,
-    insertImage,
-    uploadPendingImages,
-  } = useTextEditor({
-    initialContent,
-    onImageUpload,
-    imageUploadEndpoint,
-    allowedImageTypes,
-    maxImageSize,
-  });
+export const TextEditor = forwardRef<HTMLDivElement, TextEditorProps>(
+  (
+    {
+      initialContent = "",
+      onChange,
+      onSave,
+      onExport,
+      readOnly = false,
+      showButtons = false,
+      showSaveTitle = false,
+      showStatusBar = false,
+      height = "500px",
+      onImageUpload,
+      imageUploadEndpoint,
+      allowedImageTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ],
+      maxImageSize = 5 * 1024 * 1024,
+      onInit,
+      debounceDelay = 300,
+    },
+    ref
+  ) => {
+    const {
+      editorState,
+      updateContent,
+      updateTitle,
+      executeCommand,
+      getValidationResult,
+      exportToHTML,
+      clearEditor,
+      handlePaste,
+      handleDrop,
+      insertImage,
+      uploadPendingImages,
+    } = useTextEditor({
+      initialContent,
+      onImageUpload,
+      imageUploadEndpoint,
+      allowedImageTypes,
+      maxImageSize,
+    });
 
-  const [showValidation, setShowValidation] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // const [isFocused, setIsFocused] = useState(false);
+    const internalEditorRef = useRef<HTMLDivElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const isInitialized = useRef(false);
+    const debouncedOnChangeRef = useRef<ReturnType<typeof debounce> | null>(null);
+    const [showValidation, setShowValidation] = useState(false);
 
-  // Notify parent component when content or title changes
-  useEffect(() => {
-    if (onChange) {
-      try {
-        const html = exportToHTML({ includeStyles: false, includeMeta: false });
-        onChange(editorState.content, html, editorState.title);
-      } catch (error) {
-        const fallbackHtml = `<!DOCTYPE html><html><body>${editorState.content}</body></html>`;
-        onChange(editorState.content, fallbackHtml, editorState.title);
+    /* -------------------- Ref Forwarding -------------------- */
+    useEffect(() => {
+      if (!internalEditorRef.current) return;
+
+      if (typeof ref === "function") {
+        ref(internalEditorRef.current);
+      } else if (ref) {
+        ref.current = internalEditorRef.current;
       }
-    }
-  }, [editorState.content, editorState.title, onChange, exportToHTML]);
+    }, [ref]);
 
-  const handleSave = useCallback(async () => {
-    // First upload any pending images
-    if (editorState.pendingImages.length > 0) {
-      try {
+    /* -------------------- onInit -------------------- */
+    useEffect(() => {
+      if (onInit && internalEditorRef.current && !isInitialized.current) {
+        onInit(internalEditorRef.current);
+        isInitialized.current = true;
+      }
+    }, [onInit]);
+
+    /* -------------------- Debounced onChange -------------------- */
+    useEffect(() => {
+      if (!onChange) return;
+
+      debouncedOnChangeRef.current = debounce(
+        (content: string, html: string, title?: string) => {
+          onChange(content, html, title);
+        },
+        debounceDelay
+      );
+
+      return () => debouncedOnChangeRef.current?.cancel();
+    }, [onChange, debounceDelay]);
+
+    /* -------------------- Content Change Notify -------------------- */
+    useEffect(() => {
+      if (!onChange || !editorState.content) return;
+
+      const html =
+        (() => {
+          try {
+            return exportToHTML({
+              includeStyles: false,
+              includeMeta: false,
+            });
+          } catch {
+            return `<!DOCTYPE html><html><body>${editorState.content}</body></html>`;
+          }
+        })();
+
+      if (debounceDelay > 0 && debouncedOnChangeRef.current) {
+        debouncedOnChangeRef.current(
+          editorState.content,
+          html,
+          editorState.title
+        );
+      } else {
+        onChange(editorState.content, html, editorState.title);
+      }
+    }, [
+      editorState.content,
+      editorState.title,
+      onChange,
+      exportToHTML,
+      debounceDelay,
+    ]);
+
+    /* -------------------- Handlers -------------------- */
+    const handleSave = useCallback(async () => {
+      debouncedOnChangeRef.current?.flush();
+
+      if (editorState.pendingImages.length > 0) {
         await uploadPendingImages();
-      } catch (error) {
-        alert("Failed to upload some images. Please check and try again.");
+      }
+
+      const validation = getValidationResult();
+      if (!validation.success) {
+        setShowValidation(true);
+        setTimeout(() => setShowValidation(false), 3000);
         return;
       }
-    }
 
-    const validation = getValidationResult();
-    if (validation.success) {
-      const html = exportToHTML();
-      onSave?.(editorState.content, html);
-    } else {
-      setShowValidation(true);
-      setTimeout(() => setShowValidation(false), 3000);
-    }
-  }, [editorState.content, editorState.pendingImages, getValidationResult, exportToHTML, onSave, uploadPendingImages]);
+      onSave?.(editorState.content, exportToHTML());
+    }, [
+      editorState,
+      uploadPendingImages,
+      getValidationResult,
+      exportToHTML,
+      onSave,
+    ]);
 
-  const handleExport = useCallback(async () => {
-    try {
-      // Upload any pending images before export
+    const handleExport = useCallback(async () => {
+      debouncedOnChangeRef.current?.flush();
+
       if (editorState.pendingImages.length > 0) {
         await uploadPendingImages();
       }
@@ -111,191 +187,107 @@ export const TextEditor: React.FC<TextEditorProps> = ({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${
-        editorState.title.replace(/\s+/g, "_") || "document"
-      }.html`;
-      document.body.appendChild(a);
+      a.download =
+        editorState.title.replace(/\s+/g, "_") || "document.html";
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (error) {
-      alert(
-        "Export failed: " +
-          (error instanceof Error ? error.message : "Unknown error")
-      );
-    }
-  }, [exportToHTML, editorState.title, editorState.pendingImages, onExport, uploadPendingImages]);
+    }, [editorState, uploadPendingImages, exportToHTML, onExport]);
 
-  const handleClear = useCallback(() => {
-    if (
-      confirm(
-        "Are you sure you want to clear the editor? All unsaved changes will be lost."
-      )
-    ) {
-      clearEditor();
-    }
-  }, [clearEditor]);
+    const handleContentChange = useCallback(
+      (html: string) => updateContent(html),
+      [updateContent]
+    );
 
-  const handleContentChange = useCallback(
-    (html: string) => {
-      updateContent(html);
-    },
-    [updateContent]
-  );
+    const handleFileSelect = async (
+      e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+      if (!e.target.files) return;
 
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateTitle(e.target.value);
-  };
+      for (const file of Array.from(e.target.files)) {
+        await insertImage(file);
+      }
 
-  const handleImageUploadClick = () => {
-    fileInputRef.current?.click();
-  };
+      e.target.value = "";
+    };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    for (const file of Array.from(files)) {
-      await insertImage(file);
-    }
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  // Editor content styles as inline classes
-  const editorContentClasses = `
-    /* Heading styles */
-    [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-4 [&_h1]:text-gray-800 [&_h1]:border-b [&_h1]:pb-2
-    [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-5 [&_h2]:mb-3 [&_h2]:text-gray-800
-    [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
-    /* Paragraph styles */
-    [&_p]:mb-4 [&_p]:text-gray-700 [&_p]:leading-relaxed
-    /* List styles */
-    [&_ul]:list-disc [&_ul]:list-inside [&_ul]:mb-4 [&_ul]:ml-4 [&_ul]:space-y-1
-    [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:mb-4 [&_ol]:ml-4 [&_ol]:space-y-1
-    [&_li]:mb-1
-    /* Link styles */
-    [&_a]:text-blue-600 [&_a]:hover:text-blue-800 [&_a]:underline [&_a]:transition-colors
-    /* Blockquote styles */
-    [&_blockquote]:border-l-4 [&_blockquote]:border-blue-500 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-600 [&_blockquote]:my-4
-    /* Code styles */
-    [&_code]:bg-gray-100 [&_code]:px-2 [&_code]:py-1 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono
-    [&_pre]:bg-gray-800 [&_pre]:text-gray-100 [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:my-4
-    [&_pre_code]:bg-transparent [&_pre_code]:text-inherit [&_pre_code]:p-0
-    /* Image styles */
-    [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:shadow-md [&_img]:my-4
-    [&_.image-uploading]:opacity-50 [&_.image-uploading]:animate-pulse
-    [&_.image-failed]:border-2 [&_.image-failed]:border-red-500
-  `;
-
-  return (
-    <div
-      className={cn(
-        "relative w-full bg-white border border-gray-300 rounded-lg overflow-hidden",
-        readOnly && "pointer-events-none opacity-80"
-      )}
-      style={{ height }}
-    >
-      {/* Title Input */}
-      {showSaveTitle && (
-        <div className="p-6 border-b border-gray-200 bg-gray-50">
-          <input
-            type="text"
-            className={cn(
-              "w-full bg-transparent text-2xl font-bold text-gray-800 outline-none placeholder-gray-400",
-              readOnly && "cursor-default"
-            )}
-            value={editorState.title}
-            onChange={handleTitleChange}
-            placeholder="Document Title"
-            readOnly={readOnly}
-          />
-        </div>
-      )}
-
-      <Toolbar
-        onCommand={executeCommand}
-        onSave={handleSave}
-        onExport={handleExport}
-        showButtons={showButtons}
-        onClear={handleClear}
-        hasUnsavedChanges={editorState.hasUnsavedChanges}
-        onImageUpload={handleImageUploadClick}
-        pendingImagesCount={editorState.pendingImages.length}
-      />
-
-      {/* Hidden file input for image upload */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        accept={allowedImageTypes.join(',')}
-        multiple
-        onChange={handleFileSelect}
-      />
-
-      {/* Validation message */}
-      {showValidation && (
-        <div className="px-8 py-2 bg-red-50 text-red-600 text-sm">
-          Please fix validation errors before saving.
-        </div>
-      )}
-
-      {/* Editable Content with Built-in Styling */}
+    /* -------------------- Render -------------------- */
+    return (
       <div
-        ref={editorRef}
         className={cn(
-          "p-6 outline-none overflow-y-auto",
-          editorContentClasses,
-          readOnly ? "bg-transparent cursor-default" : "cursor-text bg-white",
-          "min-h-[200px]"
+          "relative w-full bg-white border border-gray-300 rounded-lg overflow-hidden",
+          readOnly && "pointer-events-none opacity-80"
         )}
-        contentEditable={!readOnly}
-        suppressContentEditableWarning={true}
-        // onFocus={handleFocus}
-        // onBlur={handleBlur}
-        onInput={(e) => handleContentChange(e.currentTarget.innerHTML)}
-        onPaste={handlePaste}
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
-        onKeyDown={(e) => {
-          if (e.key === 'Tab') {
-            e.preventDefault();
-            executeCommand('indent');
-          }
-        }}
-        data-placeholder={readOnly ? "" : "Start typing..."}
-        style={{ 
-          minHeight: '200px',
-          maxHeight: `calc(${height} - ${showSaveTitle ? '140px' : '80px'} - ${showStatusBar ? '40px' : '0px'})`
-        }}
-      />
-
-      {/* Pending images notification */}
-      {editorState.pendingImages.length > 0 && (
-        <div className="px-8 pb-4">
-          <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">
-            <Upload size={16} />
-            <span>
-              {editorState.pendingImages.length} image(s) pending upload. 
-              They will be uploaded when you save or export.
-            </span>
+        style={{ height }}
+      >
+        {showSaveTitle && (
+          <div className="p-6 border-b bg-gray-50">
+            <input
+              className="w-full text-2xl font-bold bg-transparent outline-none"
+              value={editorState.title}
+              onChange={(e) => updateTitle(e.target.value)}
+              placeholder="Document Title"
+              readOnly={readOnly}
+            />
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Status Bar */}
-      {showStatusBar && (
-        <StatusBar
-          wordCount={editorState.wordCount}
-          characterCount={editorState.characterCount}
+        <Toolbar
+          onCommand={executeCommand}
+          onSave={handleSave}
+          onExport={handleExport}
+          showButtons={showButtons}
+          onClear={clearEditor}
           hasUnsavedChanges={editorState.hasUnsavedChanges}
+          onImageUpload={() => fileInputRef.current?.click()}
           pendingImagesCount={editorState.pendingImages.length}
         />
-      )}
-    </div>
-  );
-};
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept={allowedImageTypes.join(",")}
+          multiple
+          onChange={handleFileSelect}
+        />
+
+        {showValidation && (
+          <div className="px-6 py-2 text-sm text-red-600 bg-red-50">
+            Please fix validation errors before saving.
+          </div>
+        )}
+
+        <div
+          ref={internalEditorRef}
+          className="p-6 outline-none overflow-y-auto min-h-[200px]"
+          contentEditable={!readOnly}
+          suppressContentEditableWarning
+          onInput={(e) =>
+            handleContentChange(e.currentTarget.innerHTML)
+          }
+          onPaste={handlePaste}
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+        />
+
+        {editorState.pendingImages.length > 0 && (
+          <div className="p-4 text-sm text-blue-600 bg-blue-50 flex gap-2">
+            <Upload size={16} />
+            {editorState.pendingImages.length} image(s) pending upload
+          </div>
+        )}
+
+        {showStatusBar && (
+          <StatusBar
+            wordCount={editorState.wordCount}
+            characterCount={editorState.characterCount}
+            hasUnsavedChanges={editorState.hasUnsavedChanges}
+            pendingImagesCount={editorState.pendingImages.length}
+          />
+        )}
+      </div>
+    );
+  }
+);
+
+export default TextEditor;
