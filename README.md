@@ -1,8 +1,3 @@
-```tsx
-import '@abduljebar/text-editor/dist/index.css';
-import { TextEditor } from "@abduljebar/text-editor";
-```
-
 # @abduljebar/text-editor
 
 A modern, feature-rich React text editor component with beautiful styling and extensive customization options. Perfect for blogs, content management systems, and any application requiring rich text editing capabilities.
@@ -11,18 +6,27 @@ A modern, feature-rich React text editor component with beautiful styling and ex
 
 ### 🎨 Rich Text Editing
 - **Text Formatting**: Bold, italic, underline, strikethrough
-- **Color Support**: 20 text colors & 25 background colors with intuitive pickers
-- **Headings**: H1, H2, H3 with automatic styling
+- **Headings**: H1, H2 with automatic styling
 - **Lists**: Bulleted and numbered lists
-- **Block Elements**: Quotes and code blocks with syntax styling
+- **Alignment**: Left, center, right alignment
+- **Block Elements**: Quotes and code blocks
 - **Undo/Redo**: Full history support
+- **Additional Formatting**: Superscript, subscript, indentation
+
+### 📁 File Management
+- **Image Upload**: Drag & drop, paste, or file picker
+- **Image Validation**: File type and size validation
+- **Pending Images**: Track and upload pending images
+- **HTML Export**: Generate complete HTML documents with styling
+- **Auto-save**: Debounced content changes with configurable delay
 
 ### 🎯 Smart UX
-- **Auto-styling**: Automatic application of beautiful Tailwind CSS styles
 - **Contextual Toolbar**: Appears only when focused and editable
 - **Real-time Stats**: Word and character count in status bar
 - **Smart Format Detection**: Visual indicators for active text formats
-- **Tab Support**: Indentation with Tab key
+- **Keyboard Shortcuts**: Ctrl+S (save), Ctrl+E (export)
+- **Auto-focus**: Automatic focus on load
+- **Placeholder Support**: Visual placeholder when empty
 
 ### 🔧 Flexible Configuration
 - **Read-only Mode**: Display content without editing capabilities
@@ -30,13 +34,15 @@ A modern, feature-rich React text editor component with beautiful styling and ex
 - **Title Support**: Optional document title with real-time updates
 - **Action Buttons**: Built-in save and export functionality
 - **Event Handling**: Comprehensive callback system
+- **Debounce Control**: Configurable change debouncing
 
 ### 🚀 Advanced Features
 - **React Hook**: `useTextEditor` for custom implementations
-- **HTML Export**: Generate complete HTML documents
-- **Validation**: Built-in content validation
-- **State Management**: Full control over editor state
+- **Ref API**: Exposed methods for programmatic control
+- **Selection Management**: Proper cursor and selection handling
+- **Paste/Upload Handling**: Smart image and content paste handling
 - **TypeScript**: Fully typed for better development experience
+- **Validation**: Built-in content validation
 
 ## 📦 Installation
 
@@ -57,7 +63,7 @@ import { TextEditor } from "@abduljebar/text-editor";
 function App() {
   return (
     <TextEditor
-      height="min-h-[400px]"
+      height="500px"
       onChange={(content, html, title) => {
         console.log("Content:", content);
         console.log("HTML:", html);
@@ -126,6 +132,38 @@ function ReadOnlyView() {
 }
 ```
 
+### With Image Upload
+
+```tsx
+import '@abduljebar/text-editor/dist/index.css';
+import { TextEditor } from "@abduljebar/text-editor";
+
+function EditorWithImages() {
+  const handleImageUpload = async (file: File) => {
+    // Upload to your backend
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    const data = await response.json();
+    return data.url; // Return the uploaded image URL
+  };
+
+  return (
+    <TextEditor
+      showButtons={true}
+      onImageUpload={handleImageUpload}
+      allowedImageTypes={['image/jpeg', 'image/png', 'image/webp']}
+      maxImageSize={10 * 1024 * 1024} // 10MB
+    />
+  );
+}
+```
+
 ## ⚙️ API Reference
 
 ### TextEditor Props
@@ -136,11 +174,62 @@ function ReadOnlyView() {
 | `onChange` | `(content: string, html: string, title?: string) => void` | `undefined` | Callback when content changes |
 | `onSave` | `(content: string, html: string) => void` | `undefined` | Callback when save is triggered |
 | `onExport` | `(html: string) => void` | `undefined` | Callback when export is triggered |
+| `onImageUpload` | `(file: File) => Promise<string>` | `undefined` | Custom image upload handler |
+| `imageUploadEndpoint` | `string` | `undefined` | Endpoint for default image upload |
 | `readOnly` | `boolean` | `false` | Disable editing when true |
 | `showButtons` | `boolean` | `false` | Show save/export buttons |
 | `showSaveTitle` | `boolean` | `false` | Show document title input |
 | `showStatusBar` | `boolean` | `false` | Show word/character count |
 | `height` | `string` | `"500px"` | Editor height (any CSS value) |
+| `allowedImageTypes` | `string[]` | `["image/jpeg","image/png","image/gif","image/webp"]` | Allowed image MIME types |
+| `maxImageSize` | `number` | `5242880` (5MB) | Maximum image size in bytes |
+| `debounceDelay` | `number` | `300` | Debounce delay for onChange in ms |
+| `className` | `string` | `""` | Additional CSS class name |
+| `placeholder` | `string` | `"Start typing here..."` | Placeholder text when empty |
+| `autoFocus` | `boolean` | `false` | Auto-focus editor on load |
+| `onInit` | `(editor: HTMLDivElement) => void` | `undefined` | Callback after editor initialization |
+
+### TextEditor Ref API
+
+The component exposes a ref with the following methods:
+
+```typescript
+interface TextEditorRef {
+  getContent: () => string;
+  getHTML: () => string;
+  getTitle: () => string;
+  clear: () => void;
+  focus: () => void;
+  insertText: (text: string) => void;
+  insertHTML: (html: string) => void;
+  executeCommand: (command: string, value?: string) => void;
+}
+```
+
+Example usage:
+```tsx
+import { useRef } from 'react';
+import { TextEditor, TextEditorRef } from "@abduljebar/text-editor";
+
+function EditorWithRef() {
+  const editorRef = useRef<TextEditorRef>(null);
+
+  const handleGetContent = () => {
+    if (editorRef.current) {
+      const content = editorRef.current.getContent();
+      const html = editorRef.current.getHTML();
+      console.log({ content, html });
+    }
+  };
+
+  return (
+    <>
+      <TextEditor ref={editorRef} />
+      <button onClick={handleGetContent}>Get Content</button>
+    </>
+  );
+}
+```
 
 ### useTextEditor Hook
 
@@ -160,12 +249,20 @@ function CustomEditor() {
     getValidationResult,
     exportToHTML,
     clearEditor,
-    resetToInitial,
-    activeFormats,
-    isLinkActive,
-  } = useTextEditor("Initial content", false);
+    handlePaste,
+    handleDrop,
+    insertImage,
+    uploadPendingImages,
+  } = useTextEditor({
+    initialContent: "Initial content",
+    onImageUpload: async (file) => {
+      // Custom upload logic
+      return "https://example.com/image.jpg";
+    },
+    allowedImageTypes: ["image/jpeg", "image/png"],
+    maxImageSize: 10 * 1024 * 1024,
+  });
 
-  // Use the state and methods to build custom UI
   return (
     <div>
       <div
@@ -173,43 +270,60 @@ function CustomEditor() {
         contentEditable
         onInput={(e) => updateContent(e.currentTarget.innerHTML)}
         className="border p-4 min-h-[200px]"
+        onPaste={handlePaste}
+        onDrop={handleDrop}
       />
       <button onClick={() => executeCommand('bold')}>
         Bold
+      </button>
+      <button onClick={() => insertImage(someFile)}>
+        Insert Image
       </button>
     </div>
   );
 }
 ```
 
+#### Hook Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `initialContent` | `string` | `""` | Initial HTML content |
+| `onImageUpload` | `(file: File) => Promise<string>` | `undefined` | Custom image upload handler |
+| `imageUploadEndpoint` | `string` | `undefined` | Endpoint for default image upload |
+| `allowedImageTypes` | `string[]` | `["image/jpeg","image/png","image/gif","image/webp"]` | Allowed image types |
+| `maxImageSize` | `number` | `5242880` | Max image size in bytes |
+
 #### Hook Return Values
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `editorState` | `object` | Current editor state (content, title, counts) |
-| `editorRef` | `RefObject` | Reference to the editable element |
+| `editorState` | `object` | Current editor state with content, title, counts, pending images |
+| `editorRef` | `RefObject<HTMLDivElement>` | Reference to the editable element |
 | `updateContent` | `(content: string) => void` | Update editor content |
 | `updateTitle` | `(title: string) => void` | Update document title |
 | `executeCommand` | `(command: string, value?: string) => void` | Execute formatting commands |
 | `getValidationResult` | `() => ValidationResult` | Validate and get editor data |
 | `exportToHTML` | `(options?) => string` | Generate HTML export |
 | `clearEditor` | `() => void` | Clear all content |
-| `resetToInitial` | `() => void` | Reset to initial content |
-| `activeFormats` | `object` | Current active text formats |
-| `isLinkActive` | `boolean` | Whether a link is currently selected |
+| `handlePaste` | `(e: React.ClipboardEvent) => void` | Handle paste events |
+| `handleDrop` | `(e: React.DragEvent) => void` | Handle drop events |
+| `insertImage` | `(file: File, atCursor?: boolean) => Promise<void>` | Insert image into editor |
+| `uploadPendingImages` | `() => Promise<void>` | Upload all pending images |
 
 ## 🎨 Styling & Customization
 
 ### Default Styling
 
-The editor comes with beautiful default styling using Tailwind CSS classes:
+The editor comes with beautiful default styling:
 
-- **Headings**: Proper hierarchy with borders and spacing
+- **Headings**: Proper hierarchy with appropriate sizing
 - **Paragraphs**: Optimal line height and margins
 - **Lists**: Clean indentation and spacing
-- **Code Blocks**: Dark theme with proper monospace fonts
+- **Code Blocks**: Proper monospace fonts
 - **Quotes**: Elegant bordered design
-- **Links**: Blue color with hover effects
+- **Links**: Proper styling with hover effects
+- **Images**: Responsive with rounded corners
 
 ### Custom Styling
 
@@ -220,18 +334,25 @@ import '@abduljebar/text-editor/dist/index.css';
 import { TextEditor } from "@abduljebar/text-editor";
 
 <TextEditor
-  className="custom-editor-styles"
+  className="my-custom-editor"
   // ... other props
 />
 ```
 
 ```css
-.custom-editor-styles {
-  /* Your custom styles */
+.my-custom-editor {
+  border: 2px solid #4f46e5;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
 
-.custom-editor-styles h1 {
-  /* Custom heading styles */
+.my-custom-editor h1 {
+  color: #4f46e5;
+  border-bottom: 2px solid #e0e7ff;
+}
+
+.my-custom-editor .toolbar {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 ```
 
@@ -275,24 +396,25 @@ import '@abduljebar/text-editor/dist/index.css';
 import { useTextEditor } from "@abduljebar/text-editor";
 
 function CustomToolbarEditor() {
-  const { executeCommand, activeFormats, editorRef } = useTextEditor();
+  const { executeCommand, editorRef, insertImage } = useTextEditor({
+    initialContent: "Start typing...",
+  });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      insertImage(file);
+    }
+  };
 
   return (
     <div className="editor-container">
       <div className="custom-toolbar">
-        <button 
-          onClick={() => executeCommand('bold')}
-          className={activeFormats.bold ? 'active' : ''}
-        >
-          B
-        </button>
-        <button 
-          onClick={() => executeCommand('italic')}
-          className={activeFormats.italic ? 'active' : ''}
-        >
-          I
-        </button>
-        {/* Add more custom buttons */}
+        <button onClick={() => executeCommand('bold')}>Bold</button>
+        <button onClick={() => executeCommand('italic')}>Italic</button>
+        <button onClick={() => executeCommand('formatBlock', 'h1')}>H1</button>
+        <button onClick={() => executeCommand('formatBlock', 'h2')}>H2</button>
+        <input type="file" accept="image/*" onChange={handleFileSelect} />
       </div>
       <div
         ref={editorRef}
@@ -304,17 +426,44 @@ function CustomToolbarEditor() {
 }
 ```
 
-## 🌈 Color Palettes
+### Programmatic Control
 
-### Text Colors (20 colors)
-- Basic: Black, White
-- Primary: Red, Green, Blue
-- Secondary: Yellow, Magenta, Cyan, Orange, Purple
-- Additional: Dark Green, Maroon, Teal, Navy, Gray, Brown, Pink, Gold, Light Green, Light Blue
+```tsx
+import { useRef, useEffect } from 'react';
+import { TextEditor, TextEditorRef } from "@abduljebar/text-editor";
 
-### Background Colors (25 colors)
-- Same as text colors plus light variants
-- Light variants: Misty Rose, Honeydew, Alice Blue, Lemon Chiffon, White Smoke, Lavender, and more
+function ProgrammaticEditor() {
+  const editorRef = useRef<TextEditorRef>(null);
+
+  useEffect(() => {
+    // Example: Auto-insert content after 2 seconds
+    const timer = setTimeout(() => {
+      if (editorRef.current) {
+        editorRef.current.insertText("Hello, world!");
+        editorRef.current.focus();
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleCommand = (command: string) => {
+    if (editorRef.current) {
+      editorRef.current.executeCommand(command);
+    }
+  };
+
+  return (
+    <div>
+      <TextEditor ref={editorRef} />
+      <div className="mt-4">
+        <button onClick={() => handleCommand('bold')}>Make Selection Bold</button>
+        <button onClick={() => editorRef.current?.clear()}>Clear Editor</button>
+      </div>
+    </div>
+  );
+}
+```
 
 ## 📋 Browser Support
 
@@ -322,6 +471,7 @@ function CustomToolbarEditor() {
 - Firefox 55+
 - Safari 12+
 - Edge 79+
+- Opera 47+
 
 ## 🔒 Accessibility
 
@@ -329,24 +479,47 @@ function CustomToolbarEditor() {
 - ARIA labels for toolbar buttons
 - Focus management
 - Screen reader compatible
+- Proper semantic HTML structure
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-1. **Content not updating**: Ensure you're using the `onChange` callback properly
-2. **Styles not applying**: Make sure Tailwind CSS is properly configured in your project
-3. **Toolbar not appearing**: Check that `readOnly` is set to `false` and the editor is focused
+1. **Toolbar buttons not working**: Ensure the editor is focused and content is selected
+2. **Images not uploading**: Check CORS settings and upload endpoint configuration
+3. **Styles not appearing**: Import the CSS file: `import '@abduljebar/text-editor/dist/index.css';`
+4. **Content not saving**: Check `onSave` callback and validation messages
+5. **Formatting lost on paste**: Use the built-in `handlePaste` function
 
 ### Performance Tips
 
-- Use `React.memo` if embedding in frequently re-rendering components
-- Debounce `onChange` callbacks for heavy operations
-- Consider using the hook version for complex custom implementations
+- Use appropriate `debounceDelay` for `onChange` to prevent excessive updates
+- Implement proper image compression before upload
+- Consider using `React.memo` if embedding in frequently re-rendering components
+- Use the ref API for programmatic control instead of frequent state updates
+
+## 📄 Supported Commands
+
+The editor supports standard `document.execCommand` APIs:
+
+- **Formatting**: `bold`, `italic`, `underline`, `strikeThrough`
+- **Headings**: `formatBlock` (with `h1`, `h2`, `h3`, `p` values)
+- **Lists**: `insertUnorderedList`, `insertOrderedList`
+- **Alignment**: `justifyLeft`, `justifyCenter`, `justifyRight`
+- **Indentation**: `indent`, `outdent`
+- **Links**: `createLink` (with URL value)
+- **History**: `undo`, `redo`
+- **Special**: `superscript`, `subscript`, `formatBlock` (with `blockquote`, `pre` values)
 
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## 📄 License
 
@@ -356,18 +529,37 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 If you encounter any issues or have questions:
 
-1. Check the [documentation](#)
-2. Search [existing issues](https://github.com/abduljebar/text-editor/issues)
-3. Create a [new issue](https://github.com/abduljebar/text-editor/issues/new)
+1. Check the documentation above
+2. Search existing GitHub issues
+3. Create a new issue with:
+   - A clear description of the problem
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Code examples if applicable
 
 ## 🚀 Changelog
 
+### v1.1.0
+- Added image upload support with drag & drop
+- Improved toolbar with better selection tracking
+- Added ref API for programmatic control
+- Enhanced keyboard shortcuts
+- Better validation and error handling
+- Added pending images tracking
+
 ### v1.0.0
 - Initial release with core editing features
-- Comprehensive text formatting options
-- Color support and styling system
+- Basic text formatting and styling
+- HTML export functionality
 - React hook for advanced usage
 
 ---
 
 Built with ❤️ by [AbdulJebar Sani](https://github.com/abduljebar49)
+
+## 🔗 Links
+
+- [GitHub Repository](https://github.com/abduljebar/text-editor)
+- [npm Package](https://www.npmjs.com/package/@abduljebar/text-editor)
+- [Issue Tracker](https://github.com/abduljebar/text-editor/issues)
+- [Documentation](https://github.com/abduljebar/text-editor#readme)
