@@ -114,10 +114,12 @@ export const useTextEditor = ({
   // Update editor content when initialContent changes externally
   useEffect(() => {
     if (initialContent !== previousInitialContentRef.current && editorRef.current) {
-      editorRef.current.innerHTML = initialContent;
+      if (editorRef.current.innerHTML !== initialContent) {
+        editorRef.current.innerHTML = initialContent;
+      }
       previousInitialContentRef.current = initialContent;
 
-      setEditorState(prev => ({
+      setEditorState((prev: EditorState) => ({
         ...prev,
         content: initialContent,
         wordCount: initialContent.trim() ? initialContent.trim().split(/\s+/).length : 0,
@@ -131,7 +133,7 @@ export const useTextEditor = ({
     const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
     const characterCount = content.length;
 
-    setEditorState(prev => ({
+    setEditorState((prev: EditorState) => ({
       ...prev,
       content,
       wordCount,
@@ -143,7 +145,7 @@ export const useTextEditor = ({
   }, []);
 
   const updateTitle = useCallback((title: string) => {
-    setEditorState(prev => ({
+    setEditorState((prev: EditorState) => ({
       ...prev,
       title,
       hasUnsavedChanges: true,

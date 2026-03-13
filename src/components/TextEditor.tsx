@@ -105,6 +105,13 @@ export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
+    const onChangeRef = useRef(onChange);
+    const lastNotifiedContent = useRef(editorState.content);
+    const lastNotifiedTitle = useRef(editorState.title);
+
+    useEffect(() => {
+      onChangeRef.current = onChange;
+    }, [onChange]);
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
@@ -169,11 +176,9 @@ export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
 
     /* -------------------- Debounced onChange -------------------- */
     useEffect(() => {
-      if (!onChange) return;
-
       debouncedOnChangeRef.current = debounce(
         (content: string, html: string, title?: string) => {
-          onChange(content, html, title);
+          onChangeRef.current?.(content, html, title);
         },
         debounceDelay
       );
@@ -183,11 +188,17 @@ export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
           debouncedOnChangeRef.current.cancel();
         }
       };
-    }, [onChange, debounceDelay]);
+    }, [debounceDelay]);
 
     /* -------------------- Content Change Notify -------------------- */
     useEffect(() => {
-      if (!onChange || !editorState.content && !editorState.content.trim()) return;
+      if (!onChangeRef.current) return;
+      
+      // Don't notify if content hasn't changed from last notification
+      if (editorState.content === lastNotifiedContent.current && 
+          editorState.title === lastNotifiedTitle.current) {
+        return;
+      }
 
       const html =
         (() => {
@@ -201,6 +212,9 @@ export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
           }
         })();
 
+      lastNotifiedContent.current = editorState.content;
+      lastNotifiedTitle.current = editorState.title;
+
       if (debounceDelay > 0 && debouncedOnChangeRef.current) {
         debouncedOnChangeRef.current(
           editorState.content,
@@ -208,12 +222,11 @@ export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
           editorState.title
         );
       } else {
-        onChange(editorState.content, html, editorState.title);
+        onChangeRef.current(editorState.content, html, editorState.title);
       }
     }, [
       editorState.content,
       editorState.title,
-      onChange,
       exportToHTML,
       debounceDelay,
     ]);
