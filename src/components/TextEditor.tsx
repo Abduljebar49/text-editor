@@ -1,6 +1,18 @@
 // src/components/TextEditor.tsx
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
+import { Toolbar } from "./Toolbar";
+import { StatusBar } from "./StatusBar";
+import { useTextEditor } from "../hooks/useTextEditor";
+import { Upload, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { cn } from "../utils";
+import debounce from "lodash/debounce";
 
 interface TextEditorProps {
   initialContent?: string;
@@ -12,648 +24,515 @@ interface TextEditorProps {
   showSaveTitle?: boolean;
   showStatusBar?: boolean;
   height?: string;
+  onImageUpload?: (file: File) => Promise<string>;
+  imageUploadEndpoint?: string;
+  allowedImageTypes?: string[];
+  maxImageSize?: number;
+  onInit?: (editor: HTMLDivElement) => void;
+  debounceDelay?: number;
+  className?: string;
+  placeholder?: string;
+  autoFocus?: boolean;
 }
 
-export const TextEditor: React.FC<TextEditorProps> = ({
-  initialContent = "",
-  onChange,
-  onSave,
-  onExport,
-  readOnly = false,
-  showButtons = false,
-  showSaveTitle = false,
-  showStatusBar = false,
-  height = "500px",
-}) => {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isFocused, setIsFocused] = useState(false);
-  const [showTextColorPicker, setShowTextColorPicker] = useState(false);
-  const [showBgColorPicker, setShowBgColorPicker] = useState(false);
-  const [title, setTitle] = useState("Untitled Document");
-  const [activeFormats, setActiveFormats] = useState({
-    bold: false,
-    italic: false,
-    underline: false,
-    strikeThrough: false,
-    justifyLeft: false,
-    justifyCenter: false,
-    justifyRight: false,
-    justifyFull: false,
-  });
+export interface TextEditorRef {
+  getContent: () => string;
+  getHTML: () => string;
+  getTitle: () => string;
+  clear: () => void;
+  focus: () => void;
+  insertText: (text: string) => void;
+  insertHTML: (html: string) => void;
+  executeCommand: (command: string, value?: string) => void;
+}
 
-  // Initialize content with proper styling
-  useEffect(() => {
-    if (editorRef.current && initialContent) {
-      editorRef.current.innerHTML = initialContent;
-      applyEditorStyles();
-    }
-  }, [initialContent]);
-
-  // Apply editor styles to the content
-  const applyEditorStyles = useCallback(() => {
-    if (!editorRef.current) return;
-
-    // Apply styles to existing elements
-    const applyStylesToElement = (element: Element) => {
-      const tagName = element.tagName.toLowerCase();
-      
-      switch (tagName) {
-        case 'h1':
-          element.classList.add('text-3xl', 'font-bold', 'mt-6', 'mb-4', 'text-gray-800', 'border-b', 'pb-2');
-          break;
-        case 'h2':
-          element.classList.add('text-2xl', 'font-bold', 'mt-5', 'mb-3', 'text-gray-800');
-          break;
-        case 'h3':
-          element.classList.add('text-xl', 'font-bold', 'mt-4', 'mb-2', 'text-gray-800');
-          break;
-        case 'p':
-          element.classList.add('mb-4', 'text-gray-700', 'leading-relaxed');
-          break;
-        case 'ul':
-          element.classList.add('list-disc', 'list-inside', 'mb-4', 'ml-4', 'space-y-1');
-          break;
-        case 'ol':
-          element.classList.add('list-decimal', 'list-inside', 'mb-4', 'ml-4', 'space-y-1');
-          break;
-        case 'li':
-          element.classList.add('mb-1');
-          break;
-        case 'a':
-          element.classList.add('text-blue-600', 'hover:text-blue-800', 'underline', 'transition-colors');
-          break;
-        case 'blockquote':
-          element.classList.add('border-l-4', 'border-blue-500', 'pl-4', 'italic', 'text-gray-600', 'my-4');
-          break;
-        case 'code':
-          if (element.parentElement?.tagName.toLowerCase() !== 'pre') {
-            element.classList.add('bg-gray-100', 'px-2', 'py-1', 'rounded', 'text-sm', 'font-mono');
-          }
-          break;
-        case 'pre':
-          element.classList.add('bg-gray-800', 'text-gray-100', 'p-4', 'rounded-lg', 'overflow-x-auto', 'my-4');
-          break;
-      }
-
-      // Apply to all children
-      Array.from(element.children).forEach(applyStylesToElement);
-    };
-
-    // Apply styles to all top-level elements
-    Array.from(editorRef.current.children).forEach(applyStylesToElement);
-  }, []);
-
-  // ---- Update active formats ----
-  const updateActiveFormats = useCallback(() => {
-    if (readOnly || !editorRef.current) return;
-    
-    try {
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        setActiveFormats({
-          bold: document.queryCommandState("bold"),
-          italic: document.queryCommandState("italic"),
-          underline: document.queryCommandState("underline"),
-          strikeThrough: document.queryCommandState("strikeThrough"),
-          justifyLeft: document.queryCommandState("justifyLeft"),
-          justifyCenter: document.queryCommandState("justifyCenter"),
-          justifyRight: document.queryCommandState("justifyRight"),
-          justifyFull: document.queryCommandState("justifyFull"),
-        });
-      } else {
-        setActiveFormats({
-          bold: false,
-          italic: false,
-          underline: false,
-          strikeThrough: false,
-          justifyLeft: false,
-          justifyCenter: false,
-          justifyRight: false,
-          justifyFull: false,
-        });
-      }
-    } catch (error) {
-      console.warn("Format state detection not available:", error);
-    }
-  }, [readOnly]);
-
-  const handleInput = useCallback(() => {
-    if (!editorRef.current) return;
-    
-    const html = editorRef.current.innerHTML || "";
-    const text = editorRef.current.innerText || "";
-    onChange?.(text, html, title);
-
-    // Apply styles to any new elements
-    applyEditorStyles();
-    updateActiveFormats();
-  }, [onChange, title, applyEditorStyles, updateActiveFormats]);
-
-  const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTitle = e.target.value;
-    setTitle(newTitle);
-    const html = editorRef.current?.innerHTML || "";
-    const text = editorRef.current?.innerText || "";
-    onChange?.(text, html, newTitle);
-  };
-
-  // Enhanced format block command with styling
-  const formatBlockWithStyle = useCallback((tagName: string) => {
-    if (readOnly || !editorRef.current) return;
-
-    try {
-      editorRef.current.focus();
-      
-      // Use the browser's formatBlock command
-      document.execCommand('formatBlock', false, `<${tagName}>`);
-      
-      // Apply our styles after a brief delay to ensure the element is created
-      setTimeout(applyEditorStyles, 10);
-      
-      handleInput();
-      updateActiveFormats();
-    } catch (error) {
-      console.warn(`Format block ${tagName} failed:`, error);
-    }
-  }, [readOnly, applyEditorStyles, handleInput, updateActiveFormats]);
-
-  // Enhanced list commands with styling
-  const insertListWithStyle = useCallback((command: string) => {
-    if (readOnly || !editorRef.current) return;
-
-    try {
-      editorRef.current.focus();
-      document.execCommand(command, false, undefined);
-      
-      // Apply styles after list is created
-      setTimeout(applyEditorStyles, 10);
-      
-      handleInput();
-      updateActiveFormats();
-    } catch (error) {
-      console.warn(`List command ${command} failed:`, error);
-    }
-  }, [readOnly, applyEditorStyles, handleInput, updateActiveFormats]);
-
-  // ---- Handle Focus / Blur ----
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setIsFocused(false);
-        setShowTextColorPicker(false);
-        setShowBgColorPicker(false);
-      }
-    };
-
-    if (!readOnly) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [readOnly]);
-
-  const handleFocus = () => {
-    if (!readOnly) setIsFocused(true);
-  };
-
-  const handleBlur = () => {
-    if (!readOnly) {
-      setTimeout(() => setIsFocused(false), 200);
-    }
-  };
-
-  // ---- Command Execution ----
-  const exec = useCallback(
-    (command: string, value?: string) => {
-      if (readOnly) return;
-      
-      try {
-        editorRef.current?.focus();
-        
-        // Handle special commands with styling
-        if (command === "formatBlock") {
-          formatBlockWithStyle(value || "p");
-          return;
-        } else if (command === "insertUnorderedList" || command === "insertOrderedList") {
-          insertListWithStyle(command);
-          return;
-        } else {
-          document.execCommand(command, false, value);
-        }
-        
-        handleInput();
-        updateActiveFormats();
-      } catch (error) {
-        console.warn(`Command ${command} failed:`, error);
-      }
+export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
+  (
+    {
+      initialContent = "",
+      onChange,
+      onSave,
+      onExport,
+      readOnly = false,
+      showButtons = false,
+      showSaveTitle = false,
+      showStatusBar = false,
+      height = "500px",
+      onImageUpload,
+      imageUploadEndpoint,
+      allowedImageTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+      ],
+      maxImageSize = 5 * 1024 * 1024,
+      onInit,
+      debounceDelay = 300,
+      className = "",
+      placeholder = "Start typing here...",
+      autoFocus = false,
     },
-    [readOnly, formatBlockWithStyle, insertListWithStyle, handleInput, updateActiveFormats]
-  );
+    ref
+  ) => {
+    const {
+      editorState,
+      editorRef,
+      updateContent,
+      updateTitle,
+      executeCommand,
+      getValidationResult,
+      exportToHTML,
+      clearEditor,
+      handlePaste,
+      handleDrop,
+      insertImage,
+      uploadPendingImages,
+    } = useTextEditor({
+      initialContent,
+      onImageUpload,
+      imageUploadEndpoint,
+      allowedImageTypes,
+      maxImageSize,
+    });
 
-  // ---- Handle toolbar button clicks ----
-  const handleToolbarClick = useCallback((handler: () => void) => {
-    return (e: React.MouseEvent) => {
-      e.preventDefault();
-      handler();
-    };
-  }, []);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const isInitialized = useRef(false);
+    const debouncedOnChangeRef = useRef<ReturnType<typeof debounce> | null>(null);
+    const [showValidation, setShowValidation] = useState(false);
+    const [validationMessage, setValidationMessage] = useState("");
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-  // ---- Color Palettes ----
-  const textColors = [
-    "#000000", "#FFFFFF", "#FF0000", "#00FF00", "#0000FF", 
-    "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080",
-    "#008000", "#800000", "#008080", "#000080", "#808080",
-    "#A52A2A", "#FFC0CB", "#FFD700", "#90EE90", "#ADD8E6"
-  ];
+    // Expose methods via ref
+    useImperativeHandle(ref, () => ({
+      getContent: () => editorState.content,
+      getHTML: () => exportToHTML(),
+      getTitle: () => editorState.title,
+      clear: clearEditor,
+      focus: () => {
+        if (editorRef.current) {
+          editorRef.current.focus();
+          // Place cursor at the end
+          const range = document.createRange();
+          range.selectNodeContents(editorRef.current);
+          range.collapse(false);
+          const selection = window.getSelection();
+          selection?.removeAllRanges();
+          selection?.addRange(range);
+        }
+      },
+      insertText: (text: string) => {
+        if (editorRef.current) {
+          document.execCommand("insertText", false, text);
+          updateContent(editorRef.current.innerHTML);
+        }
+      },
+      insertHTML: (html: string) => {
+        if (editorRef.current) {
+          document.execCommand("insertHTML", false, html);
+          updateContent(editorRef.current.innerHTML);
+        }
+      },
+      executeCommand: (command: string, value?: string) => {
+        executeCommand(command, value);
+      },
+    }));
 
-  const bgColors = [
-    "#FFFFFF", "#000000", "#FF0000", "#00FF00", "#0000FF",
-    "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500", "#800080",
-    "#008000", "#800000", "#008080", "#000080", "#808080",
-    "#FFE4E1", "#F0FFF0", "#F0F8FF", "#FFFACD", "#F5F5F5",
-    "#E6E6FA", "#FFEFD5", "#F0E68C", "#F5DEB3", "#D3D3D3"
-  ];
+    /* -------------------- onInit -------------------- */
+    useEffect(() => {
+      if (onInit && editorRef.current && !isInitialized.current) {
+        onInit(editorRef.current);
+        isInitialized.current = true;
+      }
+    }, [onInit, editorRef]);
 
-  // Color application functions
-  const applyTextColor = useCallback((color: string) => {
-    exec("foreColor", color);
-  }, [exec]);
-
-  const applyBackgroundColor = useCallback((color: string) => {
-    exec("hiliteColor", color);
-  }, [exec]);
-
-  // ---- Action Handlers ----
-  const handleSave = useCallback(() => {
-    const html = editorRef.current?.innerHTML || "";
-    const text = editorRef.current?.innerText || "";
-    onSave?.(text, html);
-  }, [onSave]);
-
-  const handleExport = useCallback(() => {
-    const html = editorRef.current?.innerHTML || "";
-    onExport?.(html);
-  }, [onExport]);
-
-  // ---- Toolbar Components ----
-  const ToolbarDivider = () => <div className="w-px h-6 bg-gray-300 mx-1" />;
-
-  const ToolbarButton: React.FC<{
-    onClick: () => void;
-    title: string;
-    children: React.ReactNode;
-    isActive?: boolean;
-    className?: string;
-  }> = ({ onClick, title, children, isActive = false, className = "" }) => (
-    <button
-      className={cn(
-        "w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 transition-colors",
-        isActive && "bg-blue-100 text-blue-600 border border-blue-300",
-        className
-      )}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={handleToolbarClick(onClick)}
-      title={title}
-      type="button"
-      disabled={readOnly}
-    >
-      {children}
-    </button>
-  );
-
-  const ColorPicker: React.FC<{
-    colors: string[];
-    onColorSelect: (color: string) => void;
-    isOpen: boolean;
-    onToggle: () => void;
-    buttonContent: React.ReactNode;
-    title: string;
-  }> = ({ colors, onColorSelect, isOpen, onToggle, buttonContent, title }) => (
-    <div className="relative">
-      <ToolbarButton 
-        onClick={onToggle} 
-        title={title} 
-        className="relative"
-      >
-        {buttonContent}
-        <span className="absolute -bottom-1 -right-1 text-[8px]">▼</span>
-      </ToolbarButton>
-      {isOpen && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-2 grid grid-cols-5 gap-1 z-20 min-w-[140px]">
-          {colors.map((color) => (
-            <button
-              key={color}
-              className="w-5 h-5 rounded border border-gray-300 hover:scale-110 transition-transform"
-              style={{ backgroundColor: color }}
-              title={color}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={handleToolbarClick(() => {
-                onColorSelect(color);
-                onToggle();
-              })}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  // Editor content styles as inline classes
-  const editorContentClasses = `
-    [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-6 [&_h1]:mb-4 [&_h1]:text-gray-800 [&_h1]:border-b [&_h1]:pb-2
-    [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:mt-5 [&_h2]:mb-3 [&_h2]:text-gray-800
-    [&_h3]:text-xl [&_h3]:font-bold [&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-gray-800
-    [&_p]:mb-4 [&_p]:text-gray-700 [&_p]:leading-relaxed
-    [&_ul]:list-disc [&_ul]:list-inside [&_ul]:mb-4 [&_ul]:ml-4 [&_ul]:space-y-1
-    [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:mb-4 [&_ol]:ml-4 [&_ol]:space-y-1
-    [&_li]:mb-1
-    [&_a]:text-blue-600 [&_a]:hover:text-blue-800 [&_a]:underline [&_a]:transition-colors
-    [&_blockquote]:border-l-4 [&_blockquote]:border-blue-500 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-600 [&_blockquote]:my-4
-    [&_code]:bg-gray-100 [&_code]:px-2 [&_code]:py-1 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono
-    [&_pre]:bg-gray-800 [&_pre]:text-gray-100 [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:my-4
-    [&_pre_code]:bg-transparent [&_pre_code]:text-inherit [&_pre_code]:p-0
-  `;
-
-  return (
-    <div
-      ref={containerRef}
-      className={cn(
-        "relative w-full bg-white border border-gray-300 rounded-lg overflow-hidden",
-        readOnly && "pointer-events-none opacity-80"
-      )}
-    >
-      {/* Title Input */}
-      {showSaveTitle && (
-        <div className="p-6 border-b border-gray-200 bg-gray-50">
-          <input
-            type="text"
-            className={cn(
-              "w-full bg-transparent text-2xl font-bold text-gray-800 outline-none placeholder-gray-400",
-              readOnly && "cursor-default"
-            )}
-            value={title}
-            onChange={handleTitleChange}
-            placeholder="Document Title"
-            readOnly={readOnly}
-          />
-        </div>
-      )}
-
-      {/* Action Buttons */}
-      {showButtons && (
-        <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 flex items-center gap-2">
-          <button
-            onClick={handleSave}
-            disabled={readOnly}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Save
-          </button>
-          <button
-            onClick={handleExport}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Export
-          </button>
-        </div>
-      )}
-
-      {/* Fixed Horizontal Toolbar */}
-      {!readOnly && isFocused && (
-        <div
-          ref={toolbarRef}
-          className="border-b border-gray-200 bg-white px-4 py-2 flex items-center gap-1 flex-wrap sticky top-0 z-10"
-        >
-          {/* Text Formatting */}
-          <ToolbarButton
-            onClick={() => exec("bold")}
-            title="Bold"
-            isActive={activeFormats.bold}
-          >
-            <span className="font-bold text-sm">B</span>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => exec("italic")}
-            title="Italic"
-            isActive={activeFormats.italic}
-          >
-            <span className="italic text-sm">I</span>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => exec("underline")}
-            title="Underline"
-            isActive={activeFormats.underline}
-          >
-            <span className="underline text-sm">U</span>
-          </ToolbarButton>
-
-          <ToolbarDivider />
-
-          {/* Text Alignment */}
-          <ToolbarButton
-            onClick={() => exec("justifyLeft")}
-            title="Align Left"
-            isActive={activeFormats.justifyLeft}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 5h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h12a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h12a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2z"/>
-            </svg>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => exec("justifyCenter")}
-            title="Align Center"
-            isActive={activeFormats.justifyCenter}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 5h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm3 4h12a1 1 0 1 0 0-2H6a1 1 0 1 0 0 2zm-3 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm3 4h12a1 1 0 1 0 0-2H6a1 1 0 1 0 0 2zm-3 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2z"/>
-            </svg>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => exec("justifyRight")}
-            title="Align Right"
-            isActive={activeFormats.justifyRight}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 5h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm9 4h9a1 1 0 1 0 0-2h-9a1 1 0 1 0 0 2zm9 4H3a1 1 0 1 0 0 2h18a1 1 0 1 0 0-2zm-9 4h9a1 1 0 1 0 0-2h-9a1 1 0 1 0 0 2zm9 4H3a1 1 0 1 0 0 2h18a1 1 0 1 0 0-2z"/>
-            </svg>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => exec("justifyFull")}
-            title="Justify"
-            isActive={activeFormats.justifyFull}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M3 5h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2zm0 4h18a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2z"/>
-            </svg>
-          </ToolbarButton>
-
-          <ToolbarDivider />
-
-          {/* Text Color */}
-          <ColorPicker
-            colors={textColors}
-            onColorSelect={applyTextColor}
-            isOpen={showTextColorPicker}
-            onToggle={() => {
-              setShowTextColorPicker(!showTextColorPicker);
-              setShowBgColorPicker(false);
-            }}
-            buttonContent={
-              <div className="flex flex-col items-center">
-                <span className="text-xs font-bold">A</span>
-                <div className="w-3 h-1 bg-red-500 mt-[-2px]" />
-              </div>
-            }
-            title="Text Color"
-          />
-
-          {/* Background Color */}
-          <ColorPicker
-            colors={bgColors}
-            onColorSelect={applyBackgroundColor}
-            isOpen={showBgColorPicker}
-            onToggle={() => {
-              setShowBgColorPicker(!showBgColorPicker);
-              setShowTextColorPicker(false);
-            }}
-            buttonContent={
-              <div className="flex flex-col items-center">
-                <div className="w-4 h-3 border border-gray-400 bg-yellow-200" />
-                <span className="text-[8px] mt-[-2px]">Bg</span>
-              </div>
-            }
-            title="Background Color"
-          />
-
-          <ToolbarDivider />
-
-          {/* Lists */}
-          <ToolbarButton
-            onClick={() => exec("insertUnorderedList")}
-            title="Bulleted List"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M4,3c0,1.1-0.9,2-2,2S0,4.1,0,3s0.9-2,2-2S4,1.9,4,3z M2,9c-1.1,0-2,0.9-2,2s0.9,2,2,2s2-0.9,2-2S3.1,9,2,9z M2,17c-1.1,0-2,0.9-2,2s0.9,2,2,2s2-0.9,2-2S3.1,17,2,17z M24,19c0-0.6-0.4-1-1-1H8c-0.6,0-1,0.4-1,1s0.4,1,1,1h15C23.6,20,24,19.6,24,19z M24,11c0-0.6-0.4-1-1-1H8c-0.6,0-1,0.4-1,1s0.4,1,1,1h15C23.6,12,24,11.6,24,11z M24,3c0-0.6-0.4-1-1-1H8C7.4,2,7,2.4,7,3s0.4,1,1,1h15C23.6,4,24,3.6,24,3z" />
-            </svg>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => exec("insertOrderedList")}
-            title="Numbered List"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M10 3a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H11a1 1 0 0 1-1-1Zm13 9H11a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2Zm0 10H11a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2ZM4 2.41V9.5a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5V1A1 1 0 0 0 4.669.056L.925 1.37a.499.499 0 0 0-.306.637l.331.944a.5.5 0 0 0 .637.307l2.414-.846H4ZM1 24h6.5a.5.5 0 0 0 .5-.5v-1a.5.5 0 0 0-.5-.5H2.287c.556-.938 1.787-1.578 2.532-1.965l.339-.177C6.425 19.195 8 18.372 8 15.813 8 13.971 6.393 12 4 12 1.363 12 .409 14.103.272 15.214c0 0-.039.284-.062.504-.023.22.151.483.416.54.265.055.797.094 1.015.13.218.034.5-.06.537-.387.025-.22.078-.533.078-.533C2.291 15.223 2.543 14 4 14c1.239 0 2 1.056 2 1.813 0 1.293-.542 1.631-1.769 2.272l-.333.174C2.632 18.916 0 20.282 0 23 0 23 0 24 1 24Z" />
-            </svg>
-          </ToolbarButton>
-
-          <ToolbarDivider />
-
-          {/* Headers */}
-          <ToolbarButton
-            onClick={() => exec("formatBlock", "h1")}
-            title="Heading 1"
-          >
-            <span className="text-xs font-bold">H1</span>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => exec("formatBlock", "h2")}
-            title="Heading 2"
-          >
-            <span className="text-xs font-bold">H2</span>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => exec("formatBlock", "h3")}
-            title="Heading 3"
-          >
-            <span className="text-xs font-bold">H3</span>
-          </ToolbarButton>
-
-          <ToolbarDivider />
-
-          {/* Quote & Code */}
-          <ToolbarButton
-            onClick={() => exec("formatBlock", "blockquote")}
-            title="Quote"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M2 3v20a1 1 0 1 1-2 0V3a1 1 0 1 1 2 0Zm5 3h12a1 1 0 1 0 0 2H7a1 1 0 1 0 0 2Zm16 6H7a1 1 0 1 0 0 2h16a1 1 0 1 0 0-2Zm-4 8H7a1 1 0 1 0 0 2h12a1 1 0 1 0 0-2Z" />
-            </svg>
-          </ToolbarButton>
-
-          <ToolbarButton
-            onClick={() => exec("formatBlock", "pre")}
-            title="Code Block"
-          >
-            <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor">
-              <path d="M32 10v6a1 1 0 1 1-2 0v-6c0-2.206-1.794-4-4-4H6c-2.206 0-4 1.794-4 4v12c0 2.206 1.794 4 4 4h3a1 1 0 1 1 0 2H6c-3.309 0-6-2.691-6-6V10c0-3.309 2.691-6 6-6h20c3.309 0 6 2.691 6 6Zm-13.359 8.232a1 1 0 0 0-1.409.128l-5 6a1 1 0 0 0 0 1.28l5 6a1 1 0 0 0 1.538-1.28L14.303 25l4.467-5.36a1 1 0 0 0-.129-1.408Zm8.128.128a1 1 0 0 0-1.537 1.28L29.699 25l-4.467 5.36a1 1 0 1 0 1.538 1.28l5-6a1 1 0 0 0 0-1.28l-5.001-6Z" />
-            </svg>
-          </ToolbarButton>
-
-          <ToolbarDivider />
-
-          {/* Actions */}
-          <ToolbarButton onClick={() => exec("undo")} title="Undo">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M7.18 4.8a1 1 0 0 1 .77 1.84A7.8 7.8 0 1 0 16 12a1 1 0 1 1 2 0 9.8 9.8 0 1 1-9.37-9.88 1 1 0 0 1 .55.68Z"/>
-              <path d="M11.29 7.71a1 1 0 0 1 0 1.42L9.41 11H17a1 1 0 1 1 0 2H9.41l1.88 1.88a1 1 0 0 1-1.42 1.41l-3.58-3.59a1 1 0 0 1 0-1.41l3.58-3.59a1 1 0 0 1 1.42 0Z"/>
-            </svg>
-          </ToolbarButton>
-
-          <ToolbarButton onClick={() => exec("redo")} title="Redo">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M16.82 4.8a1 1 0 0 0-.77 1.84A7.8 7.8 0 1 1 8 12a1 1 0 1 0-2 0 9.8 9.8 0 1 0 9.37-9.88 1 1 0 0 0-.55.68Z"/>
-              <path d="M12.71 7.71a1 1 0 0 0 0 1.42L14.59 11H7a1 1 0 1 0 0 2h7.59l-1.88 1.88a1 1 0 1 0 1.42 1.41l3.58-3.59a1 1 0 0 0 0-1.41l-3.58-3.59a1 1 0 0 0-1.42 0Z"/>
-            </svg>
-          </ToolbarButton>
-        </div>
-      )}
-
-      {/* Editable Content with Built-in Styling */}
-      <div
-        ref={editorRef}
-        className={cn(
-          "p-6 outline-none",
-          editorContentClasses,
-          readOnly ? "bg-transparent cursor-default" : "cursor-text bg-white",
-          "min-h-[500px]"
-        )}
-        contentEditable={!readOnly}
-        suppressContentEditableWarning={true}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onInput={handleInput}
-        onKeyDown={(e) => {
-          if (e.key === 'Tab') {
-            e.preventDefault();
-            exec('indent');
+    /* -------------------- Auto Focus -------------------- */
+    useEffect(() => {
+      if (autoFocus && editorRef.current && !readOnly) {
+        setTimeout(() => {
+          if (editorRef.current) {
+            editorRef.current.focus();
+            // Place cursor at the end
+            const range = document.createRange();
+            range.selectNodeContents(editorRef.current);
+            range.collapse(false);
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
           }
-        }}
-        data-placeholder={readOnly ? "" : "Start typing..."}
-        style={{ minHeight: height }}
-      />
+        }, 100);
+      }
+    }, [autoFocus, readOnly, editorRef]);
 
-      {/* Status Bar */}
-      {showStatusBar && (
-        <div className="px-6 py-3 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between">
-          <span>
-            Words:{" "}
-            {editorRef.current?.innerText?.split(/\s+/).filter((word) => word.length > 0).length || 0}
-          </span>
-          <span>Characters: {editorRef.current?.innerText?.length || 0}</span>
+    /* -------------------- Debounced onChange -------------------- */
+    useEffect(() => {
+      if (!onChange) return;
+
+      debouncedOnChangeRef.current = debounce(
+        (content: string, html: string, title?: string) => {
+          onChange(content, html, title);
+        },
+        debounceDelay
+      );
+
+      return () => {
+        if (debouncedOnChangeRef.current) {
+          debouncedOnChangeRef.current.cancel();
+        }
+      };
+    }, [onChange, debounceDelay]);
+
+    /* -------------------- Content Change Notify -------------------- */
+    useEffect(() => {
+      if (!onChange || !editorState.content && !editorState.content.trim()) return;
+
+      const html =
+        (() => {
+          try {
+            return exportToHTML({
+              includeStyles: false,
+              includeMeta: false,
+            });
+          } catch {
+            return `<!DOCTYPE html><html><body>${editorState.content}</body></html>`;
+          }
+        })();
+
+      if (debounceDelay > 0 && debouncedOnChangeRef.current) {
+        debouncedOnChangeRef.current(
+          editorState.content,
+          html,
+          editorState.title
+        );
+      } else {
+        onChange(editorState.content, html, editorState.title);
+      }
+    }, [
+      editorState.content,
+      editorState.title,
+      onChange,
+      exportToHTML,
+      debounceDelay,
+    ]);
+
+    /* -------------------- Handlers -------------------- */
+    const handleSave = useCallback(async () => {
+      // Flush any pending debounced changes
+      if (debouncedOnChangeRef.current) {
+        debouncedOnChangeRef.current.flush?.();
+      }
+
+      // Upload pending images first
+      if (editorState.pendingImages.length > 0) {
+        setIsUploading(true);
+        try {
+          await uploadPendingImages();
+          setValidationMessage("Images uploaded successfully!");
+          setTimeout(() => setValidationMessage(""), 3000);
+        } catch (error) {
+          setValidationMessage("Failed to upload images. Please try again.");
+          setShowValidation(true);
+          setTimeout(() => {
+            setShowValidation(false);
+            setValidationMessage("");
+          }, 5000);
+          setIsUploading(false);
+          return;
+        } finally {
+          setIsUploading(false);
+        }
+      }
+
+      const validation = getValidationResult();
+      if (!validation.success) {
+        setValidationMessage(validation.error || "Please fix validation errors before saving.");
+        setShowValidation(true);
+        setTimeout(() => {
+          setShowValidation(false);
+          setValidationMessage("");
+        }, 3000);
+        return;
+      }
+
+      try {
+        onSave?.(editorState.content, exportToHTML());
+        setValidationMessage("Document saved successfully!");
+        setShowValidation(true);
+        setTimeout(() => {
+          setShowValidation(false);
+          setValidationMessage("");
+        }, 2000);
+      } catch (error) {
+        setValidationMessage("Failed to save document.");
+        setShowValidation(true);
+        setTimeout(() => {
+          setShowValidation(false);
+          setValidationMessage("");
+        }, 3000);
+      }
+    }, [
+      editorState,
+      uploadPendingImages,
+      getValidationResult,
+      exportToHTML,
+      onSave,
+    ]);
+
+    const handleExport = useCallback(async () => {
+      // Flush any pending debounced changes
+      if (debouncedOnChangeRef.current) {
+        debouncedOnChangeRef.current.flush?.();
+      }
+
+      // Upload pending images first
+      if (editorState.pendingImages.length > 0) {
+        setIsUploading(true);
+        try {
+          await uploadPendingImages();
+        } catch (error) {
+          console.error("Failed to upload images:", error);
+          // Continue with export even if image upload fails
+        } finally {
+          setIsUploading(false);
+        }
+      }
+
+      try {
+        const html = exportToHTML();
+        onExport?.(html);
+
+        // Create and trigger download
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${editorState.title.replace(/[^\w\s]/gi, "").replace(/\s+/g, "_") || "document"}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        setValidationMessage("Document exported successfully!");
+        setShowValidation(true);
+        setTimeout(() => {
+          setShowValidation(false);
+          setValidationMessage("");
+        }, 2000);
+      } catch (error) {
+        setValidationMessage("Failed to export document.");
+        setShowValidation(true);
+        setTimeout(() => {
+          setShowValidation(false);
+          setValidationMessage("");
+        }, 3000);
+      }
+    }, [editorState, uploadPendingImages, exportToHTML, onExport]);
+
+    const handleContentChange = useCallback(
+      (html: string) => {
+        updateContent(html);
+      },
+      [updateContent]
+    );
+
+    const handleFileSelect = async (
+      e: React.ChangeEvent<HTMLInputElement>
+    ) => {
+      if (!e.target.files || readOnly) return;
+
+      const files = Array.from(e.target.files);
+      let uploadedCount = 0;
+      const totalFiles = files.length;
+
+      for (const file of files) {
+        try {
+          await insertImage(file);
+          uploadedCount++;
+          setUploadProgress(Math.round((uploadedCount / totalFiles) * 100));
+        } catch (error) {
+          console.error("Failed to insert image:", error);
+        }
+      }
+
+      setUploadProgress(0);
+      e.target.value = "";
+    };
+
+    const handleEditorClick = useCallback(() => {
+      if (readOnly) return;
+      if (editorRef.current) {
+        editorRef.current.focus();
+      }
+    }, [readOnly, editorRef]);
+
+    const handleEditorKeyDown = useCallback((e: React.KeyboardEvent) => {
+      // Handle keyboard shortcuts
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        handleExport();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k' && e.shiftKey) {
+        e.preventDefault();
+        clearEditor();
+      }
+    }, [handleSave, handleExport, clearEditor]);
+
+    /* -------------------- Render -------------------- */
+    return (
+      <div
+        ref={containerRef}
+        className={cn(
+          "relative w-full bg-white border border-gray-300 rounded-lg overflow-hidden flex flex-col",
+          readOnly && "pointer-events-none opacity-80",
+          className
+        )}
+        style={{ height }}
+      >
+        {showSaveTitle && (
+          <div className="p-4 md:p-6 border-b bg-gradient-to-r from-gray-50 to-white">
+            <input
+              className="w-full text-xl md:text-2xl font-bold bg-transparent outline-none placeholder:text-gray-400"
+              value={editorState.title}
+              onChange={(e) => updateTitle(e.target.value)}
+              placeholder="Document Title"
+              readOnly={readOnly}
+              maxLength={100}
+            />
+            {editorState.title.length >= 90 && (
+              <div className="text-xs text-gray-500 text-right mt-1">
+                {editorState.title.length}/100 characters
+              </div>
+            )}
+          </div>
+        )}
+
+        <Toolbar
+          onCommand={executeCommand}
+          onSave={handleSave}
+          onExport={handleExport}
+          showButtons={showButtons}
+          onClear={clearEditor}
+          hasUnsavedChanges={editorState.hasUnsavedChanges}
+          onImageUpload={() => fileInputRef.current?.click()}
+          pendingImagesCount={editorState.pendingImages.length}
+        />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          accept={allowedImageTypes.join(",")}
+          multiple
+          onChange={handleFileSelect}
+          disabled={readOnly}
+        />
+
+        {/* Validation/Status Messages */}
+        {(showValidation || isUploading) && (
+          <div className={cn(
+            "px-4 py-3 text-sm flex items-center gap-2 transition-all duration-300",
+            isUploading 
+              ? "bg-blue-50 text-blue-700 border-b border-blue-100" 
+              : validationMessage.includes("success")
+                ? "bg-green-50 text-green-700 border-b border-green-100"
+                : "bg-red-50 text-red-700 border-b border-red-100"
+          )}>
+            {isUploading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Uploading images... {uploadProgress > 0 && `${uploadProgress}%`}</span>
+              </>
+            ) : validationMessage.includes("success") ? (
+              <>
+                <CheckCircle className="h-4 w-4" />
+                <span>{validationMessage}</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="h-4 w-4" />
+                <span>{validationMessage}</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Editor Container */}
+        <div
+          ref={editorRef}
+          className={cn(
+            "flex-1 p-4 md:p-6 outline-none overflow-y-auto min-h-[200px] bg-white",
+            readOnly 
+              ? "cursor-default select-text" 
+              : "cursor-text",
+            !editorState.content && "relative"
+          )}
+          contentEditable={!readOnly}
+          suppressContentEditableWarning
+          onInput={(e) => handleContentChange(e.currentTarget.innerHTML)}
+          onPaste={handlePaste}
+          onDrop={handleDrop}
+          onDragOver={(e) => e.preventDefault()}
+          onClick={handleEditorClick}
+          onKeyDown={handleEditorKeyDown}
+          data-placeholder={placeholder}
+          role="textbox"
+          aria-label="Text editor"
+          aria-multiline="true"
+        >
+          {!editorState.content && (
+            <div className="absolute top-6 left-6 text-gray-400 pointer-events-none select-none">
+              {placeholder}
+            </div>
+          )}
         </div>
-      )}
-    </div>
-  );
-};
+
+        {/* Pending Images Indicator */}
+        {editorState.pendingImages.length > 0 && (
+          <div className="px-4 py-3 text-sm text-blue-600 bg-blue-50 border-t border-blue-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Upload size={16} />
+              <span>
+                {editorState.pendingImages.length} image{editorState.pendingImages.length !== 1 ? 's' : ''} pending upload
+              </span>
+            </div>
+            <button
+              onClick={uploadPendingImages}
+              disabled={isUploading}
+              className="text-sm px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUploading ? 'Uploading...' : 'Upload Now'}
+            </button>
+          </div>
+        )}
+
+        {/* Status Bar */}
+        {showStatusBar && (
+          <StatusBar
+            wordCount={editorState.wordCount}
+            characterCount={editorState.characterCount}
+            hasUnsavedChanges={editorState.hasUnsavedChanges}
+            pendingImagesCount={editorState.pendingImages.length}
+          />
+        )}
+
+        {/* Keyboard Shortcuts Hint */}
+        {!readOnly && (
+          <div className="hidden md:block absolute bottom-2 right-2 text-xs text-gray-400 bg-white/80 px-2 py-1 rounded">
+            Ctrl+S to save • Ctrl+E to export
+          </div>
+        )}
+      </div>
+    );
+  }
+);
+
+TextEditor.displayName = "TextEditor";
+
+export default TextEditor;
