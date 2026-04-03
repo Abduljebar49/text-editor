@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+@import "./styles/texteditor.css";
+@import "./styles/toolbar.css";
+@import "./styles/statusbar.css";
+@import "./styles/tailwind.css";

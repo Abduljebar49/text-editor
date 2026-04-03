@@ -43,6 +43,7 @@ export interface TextEditorRef {
   focus: () => void;
   insertText: (text: string) => void;
   insertHTML: (html: string) => void;
+  setHTML: (html: string) => void;
   executeCommand: (command: string, value?: string) => void;
 }
 
@@ -85,6 +86,7 @@ export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
       getValidationResult,
       exportToHTML,
       clearEditor,
+      setHTML,
       handlePaste,
       handleDrop,
       insertImage,
@@ -142,6 +144,9 @@ export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
           document.execCommand("insertHTML", false, html);
           updateContent(editorRef.current.innerHTML);
         }
+      },
+      setHTML: (html: string) => {
+        setHTML(html);
       },
       executeCommand: (command: string, value?: string) => {
         executeCommand(command, value);
@@ -402,7 +407,7 @@ export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
       <div
         ref={containerRef}
         className={cn(
-          "relative w-full bg-white border border-gray-300 rounded-lg overflow-hidden flex flex-col",
+          "text-editor relative w-full bg-white border border-gray-300 rounded-lg overflow-hidden flex flex-col",
           readOnly && "pointer-events-none opacity-80",
           className
         )}
@@ -477,33 +482,33 @@ export const TextEditor = forwardRef<TextEditorRef, TextEditorProps>(
         )}
 
         {/* Editor Container */}
-        <div
-          ref={editorRef}
-          className={cn(
-            "flex-1 p-4 md:p-6 outline-none overflow-y-auto min-h-[200px] bg-white",
-            readOnly 
-              ? "cursor-default select-text" 
-              : "cursor-text",
-            !editorState.content && "relative"
-          )}
-          contentEditable={!readOnly}
-          suppressContentEditableWarning
-          onInput={(e) => handleContentChange(e.currentTarget.innerHTML)}
-          onPaste={handlePaste}
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          onClick={handleEditorClick}
-          onKeyDown={handleEditorKeyDown}
-          data-placeholder={placeholder}
-          role="textbox"
-          aria-label="Text editor"
-          aria-multiline="true"
-        >
+        <div className="relative flex-1 flex flex-col overflow-hidden">
           {!editorState.content && (
-            <div className="absolute top-6 left-6 text-gray-400 pointer-events-none select-none">
+            <div className="absolute top-6 left-6 text-gray-400 pointer-events-none select-none z-0">
               {placeholder}
             </div>
           )}
+          <div
+            ref={editorRef}
+            className={cn(
+              "editor-content flex-1 p-4 md:p-6 outline-none overflow-y-auto min-h-[200px] bg-transparent z-10",
+              readOnly 
+                ? "cursor-default select-text" 
+                : "cursor-text"
+            )}
+            contentEditable={!readOnly}
+            suppressContentEditableWarning
+            onInput={(e) => handleContentChange(e.currentTarget.innerHTML)}
+            onPaste={handlePaste}
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            onClick={handleEditorClick}
+            onKeyDown={handleEditorKeyDown}
+            data-placeholder={placeholder}
+            role="textbox"
+            aria-label="Text editor"
+            aria-multiline="true"
+          />
         </div>
 
         {/* Pending Images Indicator */}

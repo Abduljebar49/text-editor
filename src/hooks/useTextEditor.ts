@@ -183,7 +183,7 @@ export const useTextEditor = ({
 
       if (command === 'formatBlock' && value) {
         // Special handling for formatBlock
-        success = document.execCommand('formatBlock', false, `<${value}>`);
+        success = document.execCommand('formatBlock', false, value);
       } else if (command === 'createLink' && value) {
         // Special handling for createLink
         const selection = window.getSelection();
@@ -585,6 +585,14 @@ export const useTextEditor = ({
     previousInitialContentRef.current = '';
   }, [restoreSelection]);
 
+  const setHTML = useCallback((html: string) => {
+    if (editorRef.current) {
+      editorRef.current.innerHTML = html || '';
+      updateContent(html || '');
+      previousInitialContentRef.current = html || '';
+    }
+  }, [updateContent]);
+
   return {
     editorState,
     editorRef,
@@ -594,6 +602,7 @@ export const useTextEditor = ({
     getValidationResult,
     exportToHTML,
     clearEditor,
+    setHTML,
     handlePaste,
     handleDrop,
     insertImage,

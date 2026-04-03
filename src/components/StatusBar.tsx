@@ -16,27 +16,27 @@ export const StatusBar: React.FC<StatusBarProps> = ({
   pendingImagesCount = 0,
 }) => {
   return (
-    <div className="flex justify-between items-center px-5 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-600">
-      <div className="flex items-center gap-6">
-        <div>
-          Words: <strong className="text-gray-800">{wordCount}</strong>
+    <div className="status-bar flex justify-between items-center px-5 py-3 bg-gray-50 border-t border-gray-200 text-sm text-gray-600">
+      <div className="status-bar-content flex items-center gap-6">
+        <div className="status-item">
+          Words: <strong className="status-value text-gray-800">{wordCount}</strong>
         </div>
-        <div>
-          Characters: <strong className="text-gray-800">{characterCount}</strong>
+        <div className="status-item">
+          Characters: <strong className="status-value text-gray-800">{characterCount}</strong>
         </div>
         {pendingImagesCount > 0 && (
-          <div className="flex items-center gap-1">
-            <ImageIcon size={14} className="text-blue-600" />
-            <span className="text-blue-600">
+          <div className="status-item flex items-center gap-1">
+            <ImageIcon size={14} className="status-value text-blue-600" />
+            <span className="status-value text-blue-600">
               {pendingImagesCount} image{pendingImagesCount !== 1 ? 's' : ''}
             </span>
           </div>
         )}
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="status-bar-content flex items-center gap-2">
         <div className={`flex items-center gap-1 ${
-          hasUnsavedChanges ? 'text-orange-600' : 'text-green-600'
+          hasUnsavedChanges ? 'status-unsaved' : 'status-saved'
         }`}>
           {hasUnsavedChanges && <Save size={14} className="animate-pulse" />}
           <strong>

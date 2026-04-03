@@ -402,7 +402,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   // Group buttons for responsive design
   const renderButtonGroup = (buttons: ToolbarButton[]) => {
     return (
-      <div className="flex items-center border-r border-gray-200 pr-2 mr-2 last:border-r-0 last:pr-0 last:mr-0">
+      <div className="toolbar-section flex items-center border-r border-gray-200 pr-2 mr-2 last:border-r-0 last:pr-0 last:mr-0">
         {buttons.map((button) => {
           if (button.separator) {
             return (
@@ -442,9 +442,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               }}
               title={button.title}
               type="button"
-              className={`min-w-[36px] h-9 flex items-center justify-center rounded-md border transition-all duration-150 ${
+              className={`toolbar-button min-w-[36px] h-9 flex items-center justify-center rounded-md border transition-all duration-150 ${
                 isActive
-                  ? "bg-blue-100 text-blue-600 border-blue-300 hover:bg-blue-200 shadow-sm"
+                  ? "active bg-blue-100 text-blue-600 border-blue-300 hover:bg-blue-200 shadow-sm"
                   : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100 hover:border-gray-400"
               } active:scale-95 mx-0.5`}
               disabled={button.disabled}
@@ -469,7 +469,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   return (
     <div 
       ref={editorContainerRef}
-      className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between p-3 bg-gray-50 border-b border-gray-200 gap-2"
+      className="toolbar flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between p-3 bg-gray-50 border-b border-gray-200 gap-2"
     >
       {/* Formatting toolbar */}
       <div className="flex flex-wrap items-center gap-1 order-1 w-full sm:w-auto">
@@ -484,7 +484,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
       {/* Conditional Actions section */}
       {showButtons && (
-        <div className="flex items-center gap-2 order-2 sm:order-3 mt-2 sm:mt-0 flex-shrink-0">
+        <div className="action-buttons flex items-center gap-2 order-2 sm:order-3 mt-2 sm:mt-0 flex-shrink-0">
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -497,7 +497,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             }}
             disabled={!hasUnsavedChanges}
             title="Save Document (Ctrl+S)"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors duration-200 active:scale-95"
+            className="action-button save-button flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors duration-200 active:scale-95"
           >
             <Save size={16} />
             <span className="hidden sm:inline">Save</span>
@@ -514,7 +514,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               }, 10);
             }}
             title="Export as HTML"
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors duration-200 active:scale-95"
+            className="action-button export-button flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors duration-200 active:scale-95"
           >
             <FileDown size={16} />
             <span className="hidden sm:inline">Export</span>
@@ -531,7 +531,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               }, 10);
             }}
             title="Clear Editor"
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors duration-200 active:scale-95"
+            className="action-button clear-button flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 transition-colors duration-200 active:scale-95"
           >
             <Trash2 size={16} />
             <span className="hidden sm:inline">Clear</span>

@@ -1,9 +1,9 @@
 
-import React, { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { TextEditor } from './components/TextEditor';
 
 // Mock functions to match user snippet
-const setValue = (name: string, value: any, options?: any) => {
+const setValue = (name: string, value: any, _options?: any) => {
   console.log(`setValue called for ${name} with value:`, value);
 };
 
@@ -11,7 +11,7 @@ const setTextContent = (content: { markdown: string; html: string }) => {
   console.log('setTextContent called with:', content);
 };
 
-const autoSave = (markdown: string, html: string) => {
+const autoSave = (_markdown: string, _html: string) => {
   console.log('autoSave called with markdown and html');
 };
 
